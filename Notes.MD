@@ -30,6 +30,13 @@ Create a case class and a list
 Find a JSON library (use jackson's scala module, look on maven, check %%!)
 sbt reload, sbt update.
 
+Jackon on Scala case classes: use ctor methods and configure FAIL_ON_MISSING_CREATOR_PROPERTIES
+
+Now try
+curl -i -H "Content-Type: application/json" -X POST -d '{}' localhost:8080/registrations
+url -i -H "Content-Type: application/json" -X POST -d '{"chipNumber": "AB1111", "name": "Tom van Ommeren", "category": "M4050"}' localhost:8080/registrations
+curl -i localhost:8080/registrations
+
 
 ### Deployment
 
