@@ -4,7 +4,7 @@ import com.twitter.util.Await
 // package finagletest {
 
 	object Main extends App {
-		val server = Http.serve(":8080", RegistrationService.router)
+		val server = Http.serve(":8080", GatewayService.router)
 		Await.ready(server)
 	}
 // }

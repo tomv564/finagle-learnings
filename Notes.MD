@@ -38,6 +38,12 @@ url -i -H "Content-Type: application/json" -X POST -d '{"chipNumber": "AB1111", 
 curl -i localhost:8080/registrations
 
 
+### Convert to a gateway, add some services
+
+Why gateways? API for web clients, coarse grained calls, encapsulate auth etc + marshalling to JSON, etc.
+http://techblog.netflix.com/2013/01/optimizing-netflix-api.html
+
+
 ### Deployment
 
 Cluster management. 

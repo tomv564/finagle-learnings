@@ -11,16 +11,28 @@ import scala.collection.mutable
 import scala.util.{Try, Success, Failure}
 
 // package finagletest {
+	object EventType {
+		val CHIP_START = 1
+		val CHIP_FINISH = 2
+		val CHIP_LAP = 3
+		val MANUAL_START = 10
+		val MANUAL_FINISH = 11
+		val MANUAL_LAP = 12
+	}
 
-	case class Registration(chipNumber: String, name: String, category: String) (
+	case class Registration(chipNumber: String, name: String, category: String)
+	case class TimingEvent(`type`: Int,
+		timeStamp: Long,
+		chipNumber: Option[String],
+		category: Option[String]
 	)
+	case class Result(rank: Int, name: String, overallRank: Int, time: String)
 
-	object RegistrationService {
+	object GatewayService {
 
 		val mapper = new ObjectMapper()
 		mapper.registerModule(DefaultScalaModule)
 		mapper.configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, true)
-
 
 		val alwaysOK = new Service[Request, Response] {
 		  def apply(req: Request): Future[Response] =
@@ -31,6 +43,8 @@ import scala.util.{Try, Success, Failure}
 
 		val testPerson = Registration("AB1234", "Test Person", "M3040")
 		val registrations = mutable.MutableList[Registration](testPerson)
+		val results = mutable.MutableList[Result]()
+		val events = mutable.MutableList[TimingEvent]()
 
 		def isValidRegistration(reg: Registration): Boolean =
 			(!reg.name.isEmpty() && !reg.chipNumber.isEmpty() && !reg.category.isEmpty())
@@ -49,6 +63,17 @@ import scala.util.{Try, Success, Failure}
 
 				val out = new ByteArrayOutputStream
 				mapper.writeValue(out, registrations)
+			 	val r = Response(req.version, Status.Ok)
+			 	r.setContentTypeJson()
+			 	r.setContentString(out.toString())
+			 	Future(r)
+			}
+		}
+
+		def listResultsService() = new Service[Request, Response] {
+			def apply(req: Request): Future[Response] = {
+				val out = new ByteArrayOutputStream
+				mapper.writeValue(out, results)
 			 	val r = Response(req.version, Status.Ok)
 			 	r.setContentTypeJson()
 			 	r.setContentString(out.toString())
@@ -78,11 +103,27 @@ import scala.util.{Try, Success, Failure}
 			}
 		}
 
+		def createTimingEventService() = new Service[Request, Response] {
+			def apply(req: Request): Future[Response] = {
+				Try(req withReader { r => mapper.readValue(r, classOf[TimingEvent]) }) match {
+					case Success(event) => {
+						events += event
+						val r = Response(req.version, Status.Created)
+						Future(r)
+					}
+					case Failure(ex) => invalidRequest(req)
+				}
+
+			}
+		}
+
 		val router = RoutingService.byMethodAndPathObject[Request] {
 		    case (Method.Post, Root / "echo" / message) => echoService(message)
 		    case (Method.Get, Root / "registrations") => listRegistrationsService
 		    case (Method.Post, Root / "registrations") => createRegistrationService
-		    case _ => alwaysOK
+		    case (Method.Get, Root / "results") => listResultsService
+		    case (Method.Post, Root / "events") => createTimingEventService
+		    // case _ => alwaysOK
 		}
 
 	}
