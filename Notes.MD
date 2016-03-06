@@ -43,6 +43,23 @@ curl -i localhost:8080/registrations
 Why gateways? API for web clients, coarse grained calls, encapsulate auth etc + marshalling to JSON, etc.
 http://techblog.netflix.com/2013/01/optimizing-netflix-api.html
 
+Start extracting client logic.
+Generics in scala (for json parsing) are tricky.
+
+
+### Add processing
+
+Events are essentially a stream. They need to be processed and stored.
+
+
+### The database story
+
+HBase is meant for high write volume.
+Let's start with in-memory, but finagle-mysql woudl be nice to add to test scaling realistically.
+The problem (see: ) is sharding myself for time-series: One shard is always hot.
+
+### Un-monolith
+
 
 ### Deployment
 

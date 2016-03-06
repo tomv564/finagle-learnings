@@ -87,17 +87,17 @@ class GatewaySuite extends FunSuite with BeforeAndAfterEach {
 
   }
 
-  test("Can call GatewayService") {
+  // test("Can call GatewayService") {
 
-  	val request = Request(Method.Get, "/")
-  	val response = client(request)
-  	response.onSuccess(r => {
-  			assert(r.status == Status.Ok)
-  		})
-  	response.onFailure(r => fail(r.toString()))
-  	Await.result(response)
+  // 	val request = Request(Method.Get, "/")
+  // 	val response = client(request)
+  // 	response.onSuccess(r => {
+  // 			assert(r.status == Status.Ok)
+  // 		})
+  // 	response.onFailure(r => fail(r.toString()))
+  // 	Await.result(response)
 
-  }
+  // }
 
 
   test("Can list registrations") {
@@ -150,34 +150,27 @@ class GatewaySuite extends FunSuite with BeforeAndAfterEach {
   	Await.result(created)
   }
 
- //  test("Can list results") {
- //  	val request = Request(Method.Get, "/results")
+  test("can have a result after a race") {
 
- //  	val response = client(request)
- //  	response.onSuccess(r => {
- //  			assert(r.status == Status.Ok)
- //  			r withReader {
- //  				reader => {
- //  					val list = mapper.readValue(reader, classOf[List[String]])
- //  					print(list.length)
- //  					assert(list.length == 0)
- //  				}
- //  			}
- //  		})
-	// response.onFailure(r => fail(r.toString()))
-	// Await.result(response)
- //  }
+  	val created = createRegistration(client, testRegistration)
+  	created.onFailure(t => fail(t.toString))
+  	Await.result(created)
 
-  // test("Can send timing events") {
-  // 	val request = Request(Method.Post, "/event")
-  // 	request.contentType = MediaType.Json
-  // 	val response = client(request)
-  // 	response.onSuccess(r => {
-  // 			assert(r.status == Status.Created)
-  // 			print(r.contentString)
-  // 		})
-  // 	response.onFailure(r => fail(r.toString()))
-  // 	Await.result(response)
-  // }
+  	val started = createTimingEvent(client, ChipStarted(testRegistration.chipNumber))
+  	started.onFailure(t => fail(t.toString))
+  	Await.result(started)
+
+  	val finished = createTimingEvent(client, ChipFinished(testRegistration.chipNumber))
+  	finished.onFailure(t => fail(t.toString))
+  	Await.result(finished)
+
+  	val results = listResults(client)
+  	results.onFailure(t => fail(t.toString))
+  	results.onSuccess(
+  		list => assert(list.length == 1)
+  		)
+  	Await.result(results)
+  }
+
 
 }

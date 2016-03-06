@@ -26,7 +26,7 @@ import scala.util.{Try, Success, Failure}
 		chipNumber: Option[String],
 		category: Option[String]
 	)
-	case class Result(rank: Int, name: String, overallRank: Int, time: String)
+	case class Result(category: String, rank: Int, name: String, overallRank: Int, time: String)
 
 	object GatewayService {
 
@@ -43,7 +43,7 @@ import scala.util.{Try, Success, Failure}
 
 		val testPerson = Registration("AB1234", "Test Person", "M3040")
 		val registrations = mutable.MutableList[Registration](testPerson)
-		val results = mutable.MutableList[Result]()
+		var results = List[Result]()
 		val events = mutable.MutableList[TimingEvent]()
 
 		def isValidRegistration(reg: Registration): Boolean =
@@ -103,11 +103,26 @@ import scala.util.{Try, Success, Failure}
 			}
 		}
 
+		def parseChipEvents(chipEvents: Seq[TimingEvent]) : Option[Result] = {
+			for {
+				startEvent <- chipEvents.find(e => e.`type` == EventType.CHIP_START)
+				finishEvent <- chipEvents.find(e => e.`type` == EventType.CHIP_FINISH)
+				chipNumber <- startEvent.chipNumber
+				reg <- registrations.find(r => r.chipNumber == chipNumber)
+			} yield Result(reg.category, 1, reg.name, 1, (finishEvent.timeStamp - startEvent.timeStamp).toString)
+		}
+
+		def updateResults(events: Seq[TimingEvent]) : List[Result] = {
+			val grouped = events.groupBy(_.chipNumber)
+			grouped.flatMap { pair => parseChipEvents(pair._2)}.toList
+		}
+
 		def createTimingEventService() = new Service[Request, Response] {
 			def apply(req: Request): Future[Response] = {
 				Try(req withReader { r => mapper.readValue(r, classOf[TimingEvent]) }) match {
 					case Success(event) => {
 						events += event
+						results = updateResults(events)
 						val r = Response(req.version, Status.Created)
 						Future(r)
 					}
