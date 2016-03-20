@@ -84,6 +84,10 @@ After removing namespace defs, files ended up in package 'thrift'.
 Need to create an Impl class for the generated thrift interface
 Then got stuck with missing implementations for serviceToFunction and functionToService. Updated scrooge-core and scrooge-sbt-plugin?, fixed.
 
+Thrift client:
+* Import to registrations generated code
+* add finagle-thrift
+
 ### Evictions
 
 Somehow scrooge-core 4.5 was installed.

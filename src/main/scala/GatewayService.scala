@@ -1,4 +1,5 @@
 import com.twitter.finagle.{Http, Service}
+import com.twitter.finagle.Thrift
 import com.twitter.finagle.http.{Request, Response, Status}
 import com.twitter.util.{Await, Future}
 import com.twitter.finagle.http.service.RoutingService
@@ -9,6 +10,7 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import java.io.ByteArrayOutputStream
 import scala.collection.mutable
 import scala.util.{Try, Success, Failure}
+import io.tomv.timing.registration.thrift.{Registration, RegistrationService}
 
 // package finagletest {
 	object EventType {
@@ -20,7 +22,7 @@ import scala.util.{Try, Success, Failure}
 		val MANUAL_LAP = 12
 	}
 
-	case class Registration(chipNumber: String, name: String, category: String)
+	// case class Registration(chipNumber: String, name: String, category: String)
 	case class TimingEvent(`type`: Int,
 		timeStamp: Long,
 		chipNumber: Option[String],
@@ -33,6 +35,7 @@ import scala.util.{Try, Success, Failure}
 		val mapper = new ObjectMapper()
 		mapper.registerModule(DefaultScalaModule)
 		mapper.configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, true)
+		val registrationClient = Thrift.newIface[RegistrationService[Future]]("localhost:6000")
 
 		val alwaysOK = new Service[Request, Response] {
 		  def apply(req: Request): Future[Response] =
@@ -41,8 +44,8 @@ import scala.util.{Try, Success, Failure}
 		    )
 		}
 
-		val testPerson = Registration("AB1234", "Test Person", "M3040")
-		val registrations = mutable.MutableList[Registration](testPerson)
+		// val testPerson = Registration("AB1234", "Test Person", "M3040")
+		// val registrations = mutable.MutableList[Registration](testPerson)
 		var results = List[Result]()
 		val events = mutable.MutableList[TimingEvent]()
 
@@ -60,7 +63,7 @@ import scala.util.{Try, Success, Failure}
 
 		def listRegistrationsService() = new Service[Request, Response] {
 			def apply(req: Request): Future[Response] = {
-
+				val registrations = registrationClient.getAll()
 				val out = new ByteArrayOutputStream
 				mapper.writeValue(out, registrations)
 			 	val r = Response(req.version, Status.Ok)
@@ -91,9 +94,10 @@ import scala.util.{Try, Success, Failure}
 				Try(req withReader { r => mapper.readValue(r, classOf[Registration]) }) match {
 					case Success(reg) => {
 							if (isValidRegistration(reg)) {
-							registrations += reg
-							val r = Response(req.version, Status.Created)
-							Future(r)
+							// registrations += reg
+							registrationClient.create(reg.name, reg.category) map {
+								created => Response(req.version, Status.Created)
+							}
 						} else {
 							invalidRequest(req)
 						}
@@ -103,18 +107,24 @@ import scala.util.{Try, Success, Failure}
 			}
 		}
 
-		def parseChipEvents(chipEvents: Seq[TimingEvent]) : Option[Result] = {
+		def createResult(chipNumber: String, startEvent: TimingEvent, finishEvent: TimingEvent) : Future[Result] = {
+			registrationClient.get(chipNumber) map {
+				reg => Result(reg.category, 1, reg.name, 1, (finishEvent.timeStamp - startEvent.timeStamp).toString)
+			}
+		}
+
+		def parseChipEvents(chipEvents: Seq[TimingEvent]) : Option[Future[Result]] = {
 			for {
 				startEvent <- chipEvents.find(e => e.`type` == EventType.CHIP_START)
 				finishEvent <- chipEvents.find(e => e.`type` == EventType.CHIP_FINISH)
 				chipNumber <- startEvent.chipNumber
-				reg <- registrations.find(r => r.chipNumber == chipNumber)
-			} yield Result(reg.category, 1, reg.name, 1, (finishEvent.timeStamp - startEvent.timeStamp).toString)
+			} yield createResult(chipNumber, startEvent, finishEvent)
 		}
 
-		def updateResults(events: Seq[TimingEvent]) : List[Result] = {
+		def updateResults(events: Seq[TimingEvent]) : Future[Seq[Result]] = {
 			val grouped = events.groupBy(_.chipNumber)
-			grouped.flatMap { pair => parseChipEvents(pair._2)}.toList
+			val updatedResults = grouped.flatMap { pair => parseChipEvents(pair._2)}.toSeq
+			Future.collect(updatedResults)
 		}
 
 		def createTimingEventService() = new Service[Request, Response] {
@@ -122,7 +132,9 @@ import scala.util.{Try, Success, Failure}
 				Try(req withReader { r => mapper.readValue(r, classOf[TimingEvent]) }) match {
 					case Success(event) => {
 						events += event
-						results = updateResults(events)
+						updateResults(events) map {
+							updatedResults => results = updatedResults.toList
+						}
 						val r = Response(req.version, Status.Created)
 						Future(r)
 					}
