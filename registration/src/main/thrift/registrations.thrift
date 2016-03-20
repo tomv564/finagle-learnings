@@ -11,7 +11,7 @@ exception RegistrationException {
 }
 
 service RegistrationService {
-  void create(1: Registration registration)
+  Registration create(1: string name, 2: string category)
     throws(1: RegistrationException ex)
   Registration get(1: string chipNumber)
   list<Registration> getAll()
