@@ -87,6 +87,13 @@ Then got stuck with missing implementations for serviceToFunction and functionTo
 Thrift client:
 * Import to registrations generated code
 * add finagle-thrift
+* Rewrite everything to map Futures and or collect them.
+
+### Test fixes
+
+Registration was unknown.
+What about `cannot deserialize out of START_OBJECT token`
+Exception propagated to the root monitor
 
 ### Evictions
 

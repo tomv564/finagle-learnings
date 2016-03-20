@@ -10,7 +10,8 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import java.io.ByteArrayOutputStream
 import scala.collection.mutable
 import scala.util.{Try, Success, Failure}
-import io.tomv.timing.registration.thrift.{Registration, RegistrationService}
+import io.tomv.timing.registration.thrift.RegistrationService
+import io.tomv.timing.registration.Registration
 
 // package finagletest {
 	object EventType {
@@ -50,7 +51,7 @@ import io.tomv.timing.registration.thrift.{Registration, RegistrationService}
 		val events = mutable.MutableList[TimingEvent]()
 
 		def isValidRegistration(reg: Registration): Boolean =
-			(!reg.name.isEmpty() && !reg.chipNumber.isEmpty() && !reg.category.isEmpty())
+			(!reg.name.isEmpty() && !reg.category.isEmpty())
 
 
 		def echoService(message: String) = new Service[Request, Response] {
@@ -63,13 +64,15 @@ import io.tomv.timing.registration.thrift.{Registration, RegistrationService}
 
 		def listRegistrationsService() = new Service[Request, Response] {
 			def apply(req: Request): Future[Response] = {
-				val registrations = registrationClient.getAll()
-				val out = new ByteArrayOutputStream
-				mapper.writeValue(out, registrations)
-			 	val r = Response(req.version, Status.Ok)
-			 	r.setContentTypeJson()
-			 	r.setContentString(out.toString())
-			 	Future(r)
+				registrationClient.getAll() map {
+					registrations =>
+						val out = new ByteArrayOutputStream
+						mapper.writeValue(out, registrations)
+					 	val r = Response(req.version, Status.Ok)
+					 	r.setContentTypeJson()
+					 	r.setContentString(out.toString())
+					 	r
+				}
 			}
 		}
 
@@ -93,16 +96,18 @@ import io.tomv.timing.registration.thrift.{Registration, RegistrationService}
 
 				Try(req withReader { r => mapper.readValue(r, classOf[Registration]) }) match {
 					case Success(reg) => {
-							if (isValidRegistration(reg)) {
-							// registrations += reg
+						if (isValidRegistration(reg)) {
 							registrationClient.create(reg.name, reg.category) map {
 								created => Response(req.version, Status.Created)
 							}
 						} else {
-							invalidRequest(req)
+							Future(Response(req.version, Status.NotImplemented))//invalidRequest(req)
 						}
 					}
-					case Failure(ex) => invalidRequest(req)
+					case Failure(ex) => {
+						print(ex)
+						invalidRequest(req)
+					}
 				}
 			}
 		}

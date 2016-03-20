@@ -1,6 +1,7 @@
 import org.scalatest.FunSuite
 import org.scalatest.BeforeAndAfterEach
 import com.twitter.finagle.{Http, Service}
+import com.twitter.finagle.Thrift
 import com.twitter.finagle.http.{Request, Response, Status}
 import com.twitter.finagle.builder.ClientBuilder
 import com.twitter.util.{Closable, Future}
@@ -10,11 +11,15 @@ import com.fasterxml.jackson.databind.{ObjectMapper, DeserializationFeature}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import scala.util.{Try, Success, Failure}
 import com.twitter.finagle.http.MediaType
+import io.tomv.timing.registration.{Registration, RegistrationServiceImpl}
 // import scala.reflect.ClassTag
+//import java.net.InetSocketAddress
+
 // import scala.reflect._
 
 class GatewaySuite extends FunSuite with BeforeAndAfterEach {
   var server: com.twitter.finagle.ListeningServer = _
+  var regServer: com.twitter.finagle.ListeningServer = _
   var client: Service[Request, Response] = _
   val testRegistration = Registration("AB1234", "Run Rabbit, Run", "M2025")
 
@@ -23,12 +28,13 @@ class GatewaySuite extends FunSuite with BeforeAndAfterEach {
 	mapper.configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, true)
 
   override def beforeEach(): Unit = {
-	server = Http.serve(":8080", GatewayService.router)
+    regServer = Thrift.serveIface(":6000", new RegistrationServiceImpl())
+	  server = Http.serve(":8080", GatewayService.router)
     client = Http.client.newService(":8080")
   }
 
   override def afterEach(): Unit = {
-	Closable.all(server, client).close()
+	   Closable.all(regServer, server, client).close()
   }
 
   // def getJson[T: ClassTag](client: Service[Request, Response], path: String): Future[T] = {
