@@ -60,69 +60,37 @@ The problem (see: ) is sharding myself for time-series: One shard is always hot.
 
 ### Un-monolith
 
+Translate 3 services to thrift
+Create 3 projects in the build.sbt
+Make sure each has its own launcher/entrypoint.
+TODO: So what is src/main??
+No main class detected. Hardcoding mainClass in settings also does not work. WTF?
 
-### Deployment
+Path layout not documented by the sbt documentation
+https://github.com/jbruggem/sbt-multiproject-example
 
-Cluster management. 
-Aurora (one big machine model).
-Kubernetes (more container-style from Google)
-Marathon (container-style for Mesos. Ran at AirBnB, no batch jobs)
-Mesosphere (owns Marathon and sells another administrative layer over top?)
 
-Marathon set up:
-https://www.digitalocean.com/community/tutorials/how-to-configure-a-production-ready-mesosphere-cluster-on-ubuntu-14-04
+### Fix namespaces
 
-Service discovery:
+io.tomv.timing
 
-Zookeeper is CP, not necessarily Available (airbnb has added caching to fix this?) https://tech.knewton.com/blog/2014/12/eureka-shouldnt-use-zookeeper-service-discovery/
-Etcd (Raft based) or Eureka (Netflix)
-http://www.simplicityitself.io/getting/started/with/microservices/2015/06/10/service-discovery-overview.html
+### Thriftify
 
-### Aurora
+Installed finagle-thrift, scrooge-core and scrooge-plugin in plugins.sbt
+Created registrations.thrift in src/thrift. Ran scroogeGen.
+Files ended up in `target/scala-2.11/src_managed/` + a long namespace.
+After removing namespace defs, files ended up in package 'thrift'.
 
- The operational hierarchy is:
+Need to create an Impl class for the generated thrift interface
+Then got stuck with missing implementations for serviceToFunction and functionToService. Updated scrooge-core and scrooge-sbt-plugin?, fixed.
 
-* Aurora manages and schedules jobs for Mesos to run.
-* Mesos manages the individual tasks that make up a job.
-* Thermos manages the individual processes that make up a task.
+### Evictions
 
-http://tepid.org/tech/01-aurora-mesos-cluster/
-
-#### What does it do? 
-
-Manages jobs (workers or services?)
-Publishes them to Zookeeper
-Uses Mesos
-
-To run something, run aurora update start $jobkey $jobfile
-Job keys: cluster/role/environment/jobname
-Job file: python!
-Jobs is an array containing: 
-
-* Service tying together (cluster env role name) to task
-* Task (SequentialTask) tying processes[] to Resources(cpu =1, ram = 1*MB, disk=8*mb)
-* An install Process (name, cmdline) to copy/download/install the app
-* A run Process to start it up. 
-
-### Mesos
-
-Abstracts physical hardware into a virtual pool of resources
-Also uses Zookeeper
-Containers: Supports Docker, what about rkt?
-
-Shutdown:
-
-* if health port exists it should respond to POST /quitquitquit
-* POST /abortabortabort
-* SIGTERM
-* SIGKILL
-
-### Thermos
-
-Manages tasks?
-
+Somehow scrooge-core 4.5 was installed.
+Running 'evictions' revealed that jackson and scala base libraries were mixed up. How to fix?
 
 ### Next up:
+
 
 * Micro services, all in one project, multiple sbt projects. 
 * How to share references?
