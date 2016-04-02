@@ -58,7 +58,11 @@ HBase is meant for high write volume.
 Let's start with in-memory, but finagle-mysql woudl be nice to add to test scaling realistically.
 The problem (see: ) is sharding myself for time-series: One shard is always hot.
 
-### Un-monolith
+## Un-monolith
+
+
+* Micro services, all in one project, multiple sbt projects. 
+* How to share references?
 
 Translate 3 services to thrift
 Create 3 projects in the build.sbt
@@ -100,19 +104,28 @@ Exception propagated to the root monitor
 Somehow scrooge-core 4.5 was installed.
 Running 'evictions' revealed that jackson and scala base libraries were mixed up. How to fix?
 
+### Events service
+
+Event stream, high requests per second needed. Post events to a queue.
+
+Kestrel is a simple thrift-compatible queue written in Scala from Twitter
+Can be used as a library, see 
+https://twitter.github.io/kestrel/docs/guide.html 
+
+
+### Results service
+
+Consumes from a queue.
+
 ### Next up:
-
-
-* Micro services, all in one project, multiple sbt projects. 
-* How to share references?
 
 * define the external service handlers needed and mock data on them
     * Registrations (Participant(name, category, chipNumber), add, list)
     * Recording (chipStart, chipFinish, gunStart ())
     * Results (participants by category, ordered by (chipFinish-gunStart))
+
 * research what finagle properties apply to these services (http://alexmartins.me/2015/12/30/building-fault-tolerant-clients-with-finagle-part-1.html)
     - throttling?
     - live results over websocket
     - running in a twitterserver
 * write some tests
-* set up the thrift-based services

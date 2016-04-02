@@ -8,10 +8,22 @@ import com.twitter.finagle.http.Method
 import com.fasterxml.jackson.databind.{ObjectMapper, DeserializationFeature}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import java.io.ByteArrayOutputStream
+import com.twitter.util.Duration
+import com.twitter.finagle.util.HashedWheelTimer
 import scala.collection.mutable
 import scala.util.{Try, Success, Failure}
 import io.tomv.timing.registration.thrift.RegistrationService
 import io.tomv.timing.registration.Registration
+
+import net.lag.kestrel.{PersistentQueue, LocalDirectory}
+import net.lag.kestrel.config.{QueueConfig, QueueBuilder}
+import com.twitter.conversions.time._
+import com.twitter.concurrent.NamedPoolThreadFactory
+import java.util.concurrent._
+import org.apache.thrift.protocol.TBinaryProtocol
+import org.apache.thrift.transport.TMemoryBuffer
+
+
 
 // package finagletest {
 	object EventType {
@@ -37,6 +49,25 @@ import io.tomv.timing.registration.Registration
 		mapper.registerModule(DefaultScalaModule)
 		mapper.configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, true)
 		val registrationClient = Thrift.newIface[RegistrationService[Future]]("localhost:6000")
+
+		val queueConfig = new QueueBuilder()
+		val journalSyncScheduler =
+      new ScheduledThreadPoolExecutor(
+        Runtime.getRuntime.availableProcessors,
+        new NamedPoolThreadFactory("journal-sync", true),
+        new RejectedExecutionHandler {
+          override def rejectedExecution(r: Runnable, executor: ThreadPoolExecutor) {
+            // log.warning("Rejected journal fsync")
+          }
+        })
+		val timer = HashedWheelTimer(100.milliseconds)
+		val build = new QueueBuilder()
+		val timingEventQueue = new PersistentQueue("timingevents", new LocalDirectory("/var/spool/kestrel", journalSyncScheduler), build(), timer)
+		timingEventQueue.setup()
+
+		// (val name: String, persistencePath: String,
+  //                     @volatile var config: QueueConfig, timer: Timer,
+  //                     queueLookup: Option[(String => Option[PersistentQueue])]) {
 
 		val alwaysOK = new Service[Request, Response] {
 		  def apply(req: Request): Future[Response] =
@@ -97,9 +128,16 @@ import io.tomv.timing.registration.Registration
 				Try(req withReader { r => mapper.readValue(r, classOf[Registration]) }) match {
 					case Success(reg) => {
 						if (isValidRegistration(reg)) {
+
+
+							// val buffer = new TMemoryBuffer(512)
+							// val protocol = new TBinaryProtocol(buffer)
+							// reg.write(protocol)
+
 							registrationClient.create(reg.name, reg.category) map {
 								created => Response(req.version, Status.Created)
 							}
+
 						} else {
 							Future(Response(req.version, Status.NotImplemented))//invalidRequest(req)
 						}
@@ -136,10 +174,17 @@ import io.tomv.timing.registration.Registration
 			def apply(req: Request): Future[Response] = {
 				Try(req withReader { r => mapper.readValue(r, classOf[TimingEvent]) }) match {
 					case Success(event) => {
-						events += event
-						updateResults(events) map {
-							updatedResults => results = updatedResults.toList
-						}
+						timingEventQueue.add("hello".getBytes, None)
+
+						val buffer = new TMemoryBuffer(512)
+						val protocol = new TBinaryProtocol(buffer)
+						// Registration.write(new Registration(), protocol)
+
+
+						// events += event
+						// updateResults(events) map {
+						// 	updatedResults => results = updatedResults.toList
+						// }
 						val r = Response(req.version, Status.Created)
 						Future(r)
 					}
