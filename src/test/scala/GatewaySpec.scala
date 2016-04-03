@@ -12,6 +12,7 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import scala.util.{Try, Success, Failure}
 import com.twitter.finagle.http.MediaType
 import io.tomv.timing.registration.{Registration, RegistrationServiceImpl}
+import io.tomv.timing.results.thrift.{Result, TimingEvent}
 // import scala.reflect.ClassTag
 //import java.net.InetSocketAddress
 

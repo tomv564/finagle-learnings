@@ -9,12 +9,13 @@ import com.fasterxml.jackson.databind.{ObjectMapper, DeserializationFeature}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import java.io.ByteArrayOutputStream
 import com.twitter.util.Duration
-import com.twitter.finagle.util.HashedWheelTimer
 import scala.collection.mutable
 import scala.util.{Try, Success, Failure}
 import io.tomv.timing.registration.thrift.RegistrationService
 import io.tomv.timing.registration.Registration
+import io.tomv.timing.results.thrift.{Result, TimingEvent}
 
+import com.twitter.finagle.util.HashedWheelTimer
 import net.lag.kestrel.{PersistentQueue, LocalDirectory}
 import net.lag.kestrel.config.{QueueConfig, QueueBuilder}
 import com.twitter.conversions.time._
@@ -22,7 +23,7 @@ import com.twitter.concurrent.NamedPoolThreadFactory
 import java.util.concurrent._
 import org.apache.thrift.protocol.TBinaryProtocol
 import org.apache.thrift.transport.TMemoryBuffer
-
+import java.util.Arrays
 
 
 // package finagletest {
@@ -35,13 +36,13 @@ import org.apache.thrift.transport.TMemoryBuffer
 		val MANUAL_LAP = 12
 	}
 
-	// case class Registration(chipNumber: String, name: String, category: String)
-	case class TimingEvent(`type`: Int,
-		timeStamp: Long,
-		chipNumber: Option[String],
-		category: Option[String]
-	)
-	case class Result(category: String, rank: Int, name: String, overallRank: Int, time: String)
+	// // case class Registration(chipNumber: String, name: String, category: String)
+	// case class TimingEvent(`type`: Int,
+	// 	timeStamp: Long,
+	// 	chipNumber: Option[String],
+	// 	category: Option[String]
+	// )
+	// case class Result(category: String, rank: Int, name: String, overallRank: Int, time: String)
 
 	object GatewayService {
 
@@ -62,7 +63,7 @@ import org.apache.thrift.transport.TMemoryBuffer
         })
 		val timer = HashedWheelTimer(100.milliseconds)
 		val build = new QueueBuilder()
-		val timingEventQueue = new PersistentQueue("timingevents", new LocalDirectory("/var/spool/kestrel", journalSyncScheduler), build(), timer)
+		val timingEventQueue = new PersistentQueue("timingevents", new LocalDirectory("/Users/tomv/.kestrel", journalSyncScheduler), build(), timer)
 		timingEventQueue.setup()
 
 		// (val name: String, persistencePath: String,
@@ -130,9 +131,6 @@ import org.apache.thrift.transport.TMemoryBuffer
 						if (isValidRegistration(reg)) {
 
 
-							// val buffer = new TMemoryBuffer(512)
-							// val protocol = new TBinaryProtocol(buffer)
-							// reg.write(protocol)
 
 							registrationClient.create(reg.name, reg.category) map {
 								created => Response(req.version, Status.Created)
@@ -152,7 +150,7 @@ import org.apache.thrift.transport.TMemoryBuffer
 
 		def createResult(chipNumber: String, startEvent: TimingEvent, finishEvent: TimingEvent) : Future[Result] = {
 			registrationClient.get(chipNumber) map {
-				reg => Result(reg.category, 1, reg.name, 1, (finishEvent.timeStamp - startEvent.timeStamp).toString)
+				reg => Result(1, 1, reg.name, reg.category, (finishEvent.timeStamp - startEvent.timeStamp).toString)
 			}
 		}
 
@@ -174,10 +172,16 @@ import org.apache.thrift.transport.TMemoryBuffer
 			def apply(req: Request): Future[Response] = {
 				Try(req withReader { r => mapper.readValue(r, classOf[TimingEvent]) }) match {
 					case Success(event) => {
-						timingEventQueue.add("hello".getBytes, None)
 
 						val buffer = new TMemoryBuffer(512)
 						val protocol = new TBinaryProtocol(buffer)
+						event.write(protocol)
+
+						val bytes = Arrays.copyOfRange(buffer.getArray(), 0, buffer.length())
+						timingEventQueue.add(bytes, None)
+
+							// reg.write(protocol)
+
 						// Registration.write(new Registration(), protocol)
 
 

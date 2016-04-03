@@ -13,15 +13,15 @@ libraryDependencies ++= Seq(
 libraryDependencies += "org.scalatest" %% "scalatest" % "2.2.6" % "test"
 
 lazy val root = (project in file(".")).
-	aggregate(registration, result).
-	dependsOn(registration, result)
+	aggregate(registration, results).
+	dependsOn(registration, results)
 
 // lazy val gateway = (project in file("src/gateway")).
 // 	settings(commonSettings: _*).
 // 	settings(name := "gateway")
 
 lazy val registration = project
-lazy val result = project
+lazy val results = project
 
 // lazy val registration = (project in file("src/registration")).
 // 	settings(commonSettings: _*).
