@@ -1,3 +1,4 @@
+import com.twitter.finagle.http.service.HttpResponseClassifier
 import org.scalatest.FunSuite
 import org.scalatest.BeforeAndAfterEach
 import com.twitter.finagle.{Http, Service}
@@ -12,13 +13,14 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import scala.util.{Try, Success, Failure}
 import com.twitter.finagle.http.MediaType
 import io.tomv.timing.registration.{Registration, RegistrationServiceImpl}
-import io.tomv.timing.results.thrift.{Result, TimingEvent}
+import io.tomv.timing.results.{Result, TimingEvent}
+import org.scalatest.concurrent.ScalaFutures
 // import scala.reflect.ClassTag
 //import java.net.InetSocketAddress
 
 // import scala.reflect._
 
-class GatewaySuite extends FunSuite with BeforeAndAfterEach {
+class GatewaySuite extends FunSuite with ScalaFutures with TwitterFutures with BeforeAndAfterEach {
   var server: com.twitter.finagle.ListeningServer = _
   var regServer: com.twitter.finagle.ListeningServer = _
   var client: Service[Request, Response] = _
@@ -31,7 +33,7 @@ class GatewaySuite extends FunSuite with BeforeAndAfterEach {
   override def beforeEach(): Unit = {
     regServer = Thrift.serveIface(":6000", new RegistrationServiceImpl())
 	  server = Http.serve(":8080", GatewayService.router)
-    client = Http.client.newService(":8080")
+    client = Http.client.withResponseClassifier(HttpResponseClassifier.ServerErrorsAsFailures)newService(":8080")
   }
 
   override def afterEach(): Unit = {
@@ -49,8 +51,8 @@ class GatewaySuite extends FunSuite with BeforeAndAfterEach {
 
   def listRegistrations(client: Service[Request, Response]): Future[List[Registration]] = {
   	val request = Request(Method.Get, "/registrations")
-  	client(request) map {
-  		r => r withReader {
+		client(request) map {
+      r => r withReader {
   			reader => mapper.readValue(reader, classOf[List[Registration]])
   		}
   	}
@@ -172,12 +174,36 @@ class GatewaySuite extends FunSuite with BeforeAndAfterEach {
   	Await.result(finished)
 
   	val results = listResults(client)
-  	results.onFailure(t => fail(t.toString))
-  	results.onSuccess(
-  		list => assert(list.length == 1)
-  		)
-  	Await.result(results)
+		whenReady (results) {
+			list => assert(!list.isEmpty)
+		}
+//
+//  	results.onFailure(t => fail(t.toString))
+//  	results.onSuccess(
+//  		list => assert(!list.isEmpty)
+//  		)
+//  	Await.result(results)
   }
 
 
+}
+
+import com.twitter.util.{Throw, Return}
+import org.scalatest.concurrent.Futures
+
+trait TwitterFutures extends Futures {
+
+	import scala.language.implicitConversions
+
+	implicit def convertTwitterFuture[T](twitterFuture: com.twitter.util.Future[T]): FutureConcept[T] =
+		new FutureConcept[T] {
+			override def eitherValue: Option[Either[Throwable, T]] = {
+				twitterFuture.poll.map {
+					case Return(o) => Right(o)
+					case Throw(e)  => Left(e)
+				}
+			}
+			override def isCanceled: Boolean = false
+			override def isExpired: Boolean = false
+		}
 }

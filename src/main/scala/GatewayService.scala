@@ -13,7 +13,8 @@ import scala.collection.mutable
 import scala.util.{Try, Success, Failure}
 import io.tomv.timing.registration.thrift.RegistrationService
 import io.tomv.timing.registration.Registration
-import io.tomv.timing.results.thrift.{Result, TimingEvent}
+
+import io.tomv.timing.results.{TimingEvent, Result}
 
 import com.twitter.finagle.util.HashedWheelTimer
 import net.lag.kestrel.{PersistentQueue, LocalDirectory}

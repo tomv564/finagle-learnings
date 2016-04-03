@@ -7,6 +7,7 @@ libraryDependencies += "com.twitter" %% "finagle-thrift" % "6.34.0"
 libraryDependencies += "com.twitter" %% "scrooge-core" % "4.6.0"
 libraryDependencies += "net.lag" %% "kestrel" % "2.4.8-SNAPSHOT"
 libraryDependencies ++= Seq(
+	"com.fasterxml.jackson.core" % "jackson-core" % "2.6.3",
 	"com.fasterxml.jackson.core" % "jackson-databind" % "2.6.3",
 	"com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.6.3"
 )
