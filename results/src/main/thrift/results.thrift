@@ -14,3 +14,7 @@ struct Result {
 	4: required string category
 	5: required string time
 }
+
+service ResultsService {
+  list<Result> getAll()
+}

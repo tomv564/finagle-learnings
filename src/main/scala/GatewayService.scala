@@ -11,9 +11,11 @@ import java.io.ByteArrayOutputStream
 import com.twitter.util.Duration
 import scala.collection.mutable
 import scala.util.{Try, Success, Failure}
+
 import io.tomv.timing.registration.thrift.RegistrationService
 import io.tomv.timing.registration.Registration
 
+import io.tomv.timing.results.thrift.ResultsService
 import io.tomv.timing.results.{TimingEvent, Result}
 
 import com.twitter.finagle.util.HashedWheelTimer
@@ -27,23 +29,6 @@ import org.apache.thrift.transport.TMemoryBuffer
 import java.util.Arrays
 
 
-// package finagletest {
-	object EventType {
-		val CHIP_START = 1
-		val CHIP_FINISH = 2
-		val CHIP_LAP = 3
-		val MANUAL_START = 10
-		val MANUAL_FINISH = 11
-		val MANUAL_LAP = 12
-	}
-
-	// // case class Registration(chipNumber: String, name: String, category: String)
-	// case class TimingEvent(`type`: Int,
-	// 	timeStamp: Long,
-	// 	chipNumber: Option[String],
-	// 	category: Option[String]
-	// )
-	// case class Result(category: String, rank: Int, name: String, overallRank: Int, time: String)
 
 	object GatewayService {
 
@@ -51,6 +36,7 @@ import java.util.Arrays
 		mapper.registerModule(DefaultScalaModule)
 		mapper.configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, true)
 		val registrationClient = Thrift.newIface[RegistrationService[Future]]("localhost:6000")
+		val resultsClient = Thrift.newIface[ResultsService[Future]]("localhost:7000")
 
 		val queueConfig = new QueueBuilder()
 		val journalSyncScheduler =
@@ -111,12 +97,16 @@ import java.util.Arrays
 
 		def listResultsService() = new Service[Request, Response] {
 			def apply(req: Request): Future[Response] = {
-				val out = new ByteArrayOutputStream
-				mapper.writeValue(out, results)
-			 	val r = Response(req.version, Status.Ok)
-			 	r.setContentTypeJson()
-			 	r.setContentString(out.toString())
-			 	Future(r)
+				resultsClient.getAll() map {
+					results =>
+					val out = new ByteArrayOutputStream
+					mapper.writeValue(out, results)
+				 	val r = Response(req.version, Status.Ok)
+				 	r.setContentTypeJson()
+				 	r.setContentString(out.toString())
+				 	r
+				}
+
 			}
 		}
 
@@ -130,9 +120,6 @@ import java.util.Arrays
 				Try(req withReader { r => mapper.readValue(r, classOf[Registration]) }) match {
 					case Success(reg) => {
 						if (isValidRegistration(reg)) {
-
-
-
 							registrationClient.create(reg.name, reg.category) map {
 								created => Response(req.version, Status.Created)
 							}
@@ -149,30 +136,12 @@ import java.util.Arrays
 			}
 		}
 
-		def createResult(chipNumber: String, startEvent: TimingEvent, finishEvent: TimingEvent) : Future[Result] = {
-			registrationClient.get(chipNumber) map {
-				reg => Result(1, 1, reg.name, reg.category, (finishEvent.timeStamp - startEvent.timeStamp).toString)
-			}
-		}
-
-		def parseChipEvents(chipEvents: Seq[TimingEvent]) : Option[Future[Result]] = {
-			for {
-				startEvent <- chipEvents.find(e => e.`type` == EventType.CHIP_START)
-				finishEvent <- chipEvents.find(e => e.`type` == EventType.CHIP_FINISH)
-				chipNumber <- startEvent.chipNumber
-			} yield createResult(chipNumber, startEvent, finishEvent)
-		}
-
-		def updateResults(events: Seq[TimingEvent]) : Future[Seq[Result]] = {
-			val grouped = events.groupBy(_.chipNumber)
-			val updatedResults = grouped.flatMap { pair => parseChipEvents(pair._2)}.toSeq
-			Future.collect(updatedResults)
-		}
 
 		def createTimingEventService() = new Service[Request, Response] {
 			def apply(req: Request): Future[Response] = {
 				Try(req withReader { r => mapper.readValue(r, classOf[TimingEvent]) }) match {
 					case Success(event) => {
+
 
 						val buffer = new TMemoryBuffer(512)
 						val protocol = new TBinaryProtocol(buffer)

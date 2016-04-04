@@ -13,7 +13,7 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import scala.util.{Try, Success, Failure}
 import com.twitter.finagle.http.MediaType
 import io.tomv.timing.registration.{Registration, RegistrationServiceImpl}
-import io.tomv.timing.results.{Result, TimingEvent}
+import io.tomv.timing.results.{Result, TimingEvent, ResultsServiceImpl}
 import org.scalatest.concurrent.ScalaFutures
 // import scala.reflect.ClassTag
 //import java.net.InetSocketAddress
@@ -23,6 +23,7 @@ import org.scalatest.concurrent.ScalaFutures
 class GatewaySuite extends FunSuite with ScalaFutures with TwitterFutures with BeforeAndAfterEach {
   var server: com.twitter.finagle.ListeningServer = _
   var regServer: com.twitter.finagle.ListeningServer = _
+  var resultsServer: com.twitter.finagle.ListeningServer = _
   var client: Service[Request, Response] = _
   val testRegistration = Registration("AB1234", "Run Rabbit, Run", "M2025")
 
@@ -32,12 +33,13 @@ class GatewaySuite extends FunSuite with ScalaFutures with TwitterFutures with B
 
   override def beforeEach(): Unit = {
     regServer = Thrift.serveIface(":6000", new RegistrationServiceImpl())
+    resultsServer = Thrift.serveIface(":7000", new ResultsServiceImpl())
 	  server = Http.serve(":8080", GatewayService.router)
     client = Http.client.withResponseClassifier(HttpResponseClassifier.ServerErrorsAsFailures)newService(":8080")
   }
 
   override def afterEach(): Unit = {
-	   Closable.all(regServer, server, client).close()
+	   Closable.all(regServer, resultsServer, server, client).close()
   }
 
   // def getJson[T: ClassTag](client: Service[Request, Response], path: String): Future[T] = {
@@ -95,19 +97,6 @@ class GatewaySuite extends FunSuite with ScalaFutures with TwitterFutures with B
 	}
 
   }
-
-  // test("Can call GatewayService") {
-
-  // 	val request = Request(Method.Get, "/")
-  // 	val response = client(request)
-  // 	response.onSuccess(r => {
-  // 			assert(r.status == Status.Ok)
-  // 		})
-  // 	response.onFailure(r => fail(r.toString()))
-  // 	Await.result(response)
-
-  // }
-
 
   test("Can list registrations") {
 
