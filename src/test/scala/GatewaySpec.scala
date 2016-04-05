@@ -43,7 +43,7 @@ class GatewaySuite extends FunSuite with ScalaFutures with TwitterFutures with B
 
   val mapper = new ObjectMapper()
 	mapper.registerModule(DefaultScalaModule)
-//	mapper.configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, true)
+	mapper.configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, true)
 
   override def beforeEach(): Unit = {
     registrationServer = Thrift.serveIface(":6000", new RegistrationServiceImpl())

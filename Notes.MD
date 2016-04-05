@@ -51,7 +51,6 @@ Generics in scala (for json parsing) are tricky.
 
 Events are essentially a stream. They need to be processed and stored.
 
-
 ### The database story
 
 HBase is meant for high write volume.
@@ -96,8 +95,8 @@ Thrift client:
 ### Test fixes
 
 Registration was unknown.
-What about `cannot deserialize out of START_OBJECT token`
-Exception propagated to the root monitor
+What about `cannot deserialize out of START_OBJECT token` (empty response - http 500 status is seen as succcess by finagle - but mostly, cannot serialize traits from generated thrift)
+Exception propagated to the root monitor (use whenReady to handle Futures in tests.)
 
 ### Evictions
 
@@ -116,13 +115,42 @@ https://twitter.github.io/kestrel/docs/guide.html
 ### Results service
 
 Consumes from a queue.
-
-### Next up:
-
 * define the external service handlers needed and mock data on them
     * Registrations (Participant(name, category, chipNumber), add, list)
     * Recording (chipStart, chipFinish, gunStart ())
     * Results (participants by category, ordered by (chipFinish-gunStart))
+
+
+### Next up: clean up
+
+* Extract in-process queue creation to a single utility
+* Clean up old dependencies (eg jackson)
+* Switch to finagle-kestrel
+
+### Then: run a single instance of the whole stack 
+
+* Standalone kestrel
+* Everything still references localhost.
+* Curl test or reuse unit test?
+
+### Then: run a single instance on the single mesos slave
+
+* package into docker containers
+* run packaged containers on local docker
+* define apps in mesosphere 
+* fix any service location issues.
+
+### Then: database
+
+* local mysql instance (docker?)
+* finagle-mysql for stateful services
+
+### Then: cluster
+
+* Zookeeper serversets for everything
+* Multiple queue hosts?
+
+### Next up:
 
 * research what finagle properties apply to these services (http://alexmartins.me/2015/12/30/building-fault-tolerant-clients-with-finagle-part-1.html)
     - throttling?

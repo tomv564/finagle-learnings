@@ -34,7 +34,7 @@ import java.util.Arrays
 
 		val mapper = new ObjectMapper()
 		mapper.registerModule(DefaultScalaModule)
-//		mapper.configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, true)
+		mapper.configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, true)
 		val registrationClient = Thrift.newIface[RegistrationService[Future]]("localhost:6000")
 		val resultsClient = Thrift.newIface[ResultsService[Future]]("localhost:7000")
 
