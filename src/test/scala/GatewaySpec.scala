@@ -13,43 +13,68 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import scala.util.{Try, Success, Failure}
 import com.twitter.finagle.http.MediaType
 import io.tomv.timing.registration.{Registration, RegistrationServiceImpl}
-import io.tomv.timing.results.{Result, TimingEvent, ResultsServiceImpl}
+import io.tomv.timing.results.{EventType, Result, TimingEvent, ResultsServiceImpl, TimingEventListener}
 import org.scalatest.concurrent.ScalaFutures
-// import scala.reflect.ClassTag
-//import java.net.InetSocketAddress
+import scala.collection.mutable.ArrayBuffer
+
 
 // import scala.reflect._
+import com.twitter.finagle.util.HashedWheelTimer
+import net.lag.kestrel.{PersistentQueue, LocalDirectory}
+import net.lag.kestrel.config.{QueueConfig, QueueBuilder}
+import com.twitter.conversions.time._
+import com.twitter.concurrent.NamedPoolThreadFactory
+import java.util.concurrent._
+import org.apache.thrift.protocol.TBinaryProtocol
+import org.apache.thrift.transport.TMemoryBuffer
+import java.util.Arrays
+import com.twitter.scrooge.ThriftStruct
+import org.apache.thrift.protocol._
 
 class GatewaySuite extends FunSuite with ScalaFutures with TwitterFutures with BeforeAndAfterEach {
-  var server: com.twitter.finagle.ListeningServer = _
-  var regServer: com.twitter.finagle.ListeningServer = _
+  var gatewayServer: com.twitter.finagle.ListeningServer = _
+  var registrationServer: com.twitter.finagle.ListeningServer = _
   var resultsServer: com.twitter.finagle.ListeningServer = _
+  var eventsListener: TimingEventListener = _
+  var queue: PersistentQueue = _
+  val results : ArrayBuffer[Result] = new ArrayBuffer[Result]()
   var client: Service[Request, Response] = _
   val testRegistration = Registration("AB1234", "Run Rabbit, Run", "M2025")
 
   val mapper = new ObjectMapper()
 	mapper.registerModule(DefaultScalaModule)
-	mapper.configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, true)
+//	mapper.configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, true)
 
   override def beforeEach(): Unit = {
-    regServer = Thrift.serveIface(":6000", new RegistrationServiceImpl())
-    resultsServer = Thrift.serveIface(":7000", new ResultsServiceImpl())
-	  server = Http.serve(":8080", GatewayService.router)
+    registrationServer = Thrift.serveIface(":6000", new RegistrationServiceImpl())
+    resultsServer = Thrift.serveIface(":7000", new ResultsServiceImpl(results))
+    queue = createQueue("timingevents")
+    eventsListener = new TimingEventListener(queue, results)
+	  gatewayServer = Http.serve(":8080", new GatewayService(queue).router)
     client = Http.client.withResponseClassifier(HttpResponseClassifier.ServerErrorsAsFailures)newService(":8080")
   }
 
   override def afterEach(): Unit = {
-	   Closable.all(regServer, resultsServer, server, client).close()
+	   Closable.all(registrationServer, resultsServer, gatewayServer, client).close()
   }
 
-  // def getJson[T: ClassTag](client: Service[Request, Response], path: String): Future[T] = {
-  // 	val request = Request(Method.Get, path)
-  // 	client(request) map {
-  // 		r => r withReader {
-  // 			reader => mapper.readValue(reader, ???)
-  // 		}
-  // 	}
-  // }
+  def createQueue(name: String) : PersistentQueue = {
+    val queueConfig = new QueueBuilder()
+    val journalSyncScheduler =
+      new ScheduledThreadPoolExecutor(
+        Runtime.getRuntime.availableProcessors,
+        new NamedPoolThreadFactory("journal-sync", true),
+        new RejectedExecutionHandler {
+          override def rejectedExecution(r: Runnable, executor: ThreadPoolExecutor) {
+            // log.warning("Rejected journal fsync")
+          }
+        })
+    val timer = HashedWheelTimer(100.milliseconds)
+    val build = new QueueBuilder()
+    val queue = new PersistentQueue(name, new LocalDirectory("/Users/tomv/.kestrel", journalSyncScheduler), build(), timer)
+    queue.setup()
+    queue
+  }
 
   def listRegistrations(client: Service[Request, Response]): Future[List[Registration]] = {
   	val request = Request(Method.Get, "/registrations")
@@ -150,6 +175,8 @@ class GatewaySuite extends FunSuite with ScalaFutures with TwitterFutures with B
 
   test("can have a result after a race") {
 
+		val thread = new Thread(eventsListener).start()
+
   	val created = createRegistration(client, testRegistration)
   	created.onFailure(t => fail(t.toString))
   	Await.result(created)
@@ -162,16 +189,15 @@ class GatewaySuite extends FunSuite with ScalaFutures with TwitterFutures with B
   	finished.onFailure(t => fail(t.toString))
   	Await.result(finished)
 
+    Thread.sleep(100)
+
   	val results = listResults(client)
 		whenReady (results) {
-			list => assert(!list.isEmpty)
+			list =>
+				assert(!list.isEmpty)
+				eventsListener.stop()
 		}
-//
-//  	results.onFailure(t => fail(t.toString))
-//  	results.onSuccess(
-//  		list => assert(!list.isEmpty)
-//  		)
-//  	Await.result(results)
+
   }
 
 

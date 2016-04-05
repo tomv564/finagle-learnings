@@ -30,28 +30,14 @@ import java.util.Arrays
 
 
 
-	object GatewayService {
+	class GatewayService(timingEventQueue: PersistentQueue) {
 
 		val mapper = new ObjectMapper()
 		mapper.registerModule(DefaultScalaModule)
-		mapper.configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, true)
+//		mapper.configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, true)
 		val registrationClient = Thrift.newIface[RegistrationService[Future]]("localhost:6000")
 		val resultsClient = Thrift.newIface[ResultsService[Future]]("localhost:7000")
 
-		val queueConfig = new QueueBuilder()
-		val journalSyncScheduler =
-      new ScheduledThreadPoolExecutor(
-        Runtime.getRuntime.availableProcessors,
-        new NamedPoolThreadFactory("journal-sync", true),
-        new RejectedExecutionHandler {
-          override def rejectedExecution(r: Runnable, executor: ThreadPoolExecutor) {
-            // log.warning("Rejected journal fsync")
-          }
-        })
-		val timer = HashedWheelTimer(100.milliseconds)
-		val build = new QueueBuilder()
-		val timingEventQueue = new PersistentQueue("timingevents", new LocalDirectory("/Users/tomv/.kestrel", journalSyncScheduler), build(), timer)
-		timingEventQueue.setup()
 
 		// (val name: String, persistencePath: String,
   //                     @volatile var config: QueueConfig, timer: Timer,

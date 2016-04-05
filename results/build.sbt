@@ -10,3 +10,5 @@ libraryDependencies += "com.twitter" %% "scrooge-core" % "4.6.0"
 // 	"com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.6.3"
 // )
 libraryDependencies += "org.scalatest" %% "scalatest" % "2.2.6" % "test"
+
+libraryDependencies += "net.lag" %% "kestrel" % "2.4.8-SNAPSHOT"

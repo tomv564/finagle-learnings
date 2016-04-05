@@ -23,7 +23,7 @@ lazy val root = (project in file(".")).
 // 	settings(name := "gateway")
 
 lazy val registration = project
-lazy val results = project
+lazy val results = project.dependsOn(registration)
 
 // lazy val registration = (project in file("src/registration")).
 // 	settings(commonSettings: _*).
