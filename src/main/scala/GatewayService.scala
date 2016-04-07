@@ -8,7 +8,6 @@ import com.twitter.finagle.http.Method
 import com.fasterxml.jackson.databind.{ObjectMapper, DeserializationFeature}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import java.io.ByteArrayOutputStream
-import com.twitter.util.Duration
 import scala.collection.mutable
 import scala.util.{Try, Success, Failure}
 
@@ -18,17 +17,12 @@ import io.tomv.timing.registration.Registration
 import io.tomv.timing.results.thrift.ResultsService
 import io.tomv.timing.results.{TimingEvent, Result}
 
-import com.twitter.finagle.util.HashedWheelTimer
-import net.lag.kestrel.{PersistentQueue, LocalDirectory}
-import net.lag.kestrel.config.{QueueConfig, QueueBuilder}
-import com.twitter.conversions.time._
-import com.twitter.concurrent.NamedPoolThreadFactory
-import java.util.concurrent._
+import net.lag.kestrel.PersistentQueue
 import org.apache.thrift.protocol.TBinaryProtocol
 import org.apache.thrift.transport.TMemoryBuffer
 import java.util.Arrays
 
-
+package io.tomv.timing.gateway {
 
 	class GatewayService(timingEventQueue: PersistentQueue) {
 
@@ -38,11 +32,6 @@ import java.util.Arrays
 		val registrationClient = Thrift.newIface[RegistrationService[Future]]("localhost:6000")
 		val resultsClient = Thrift.newIface[ResultsService[Future]]("localhost:7000")
 
-
-		// (val name: String, persistencePath: String,
-  //                     @volatile var config: QueueConfig, timer: Timer,
-  //                     queueLookup: Option[(String => Option[PersistentQueue])]) {
-
 		val alwaysOK = new Service[Request, Response] {
 		  def apply(req: Request): Future[Response] =
 		    Future.value(
@@ -50,8 +39,6 @@ import java.util.Arrays
 		    )
 		}
 
-		// val testPerson = Registration("AB1234", "Test Person", "M3040")
-		// val registrations = mutable.MutableList[Registration](testPerson)
 		var results = List[Result]()
 		val events = mutable.MutableList[TimingEvent]()
 
@@ -109,7 +96,6 @@ import java.util.Arrays
 							registrationClient.create(reg.name, reg.category) map {
 								created => Response(req.version, Status.Created)
 							}
-
 						} else {
 							Future(Response(req.version, Status.NotImplemented))//invalidRequest(req)
 						}
@@ -128,7 +114,6 @@ import java.util.Arrays
 				Try(req withReader { r => mapper.readValue(r, classOf[TimingEvent]) }) match {
 					case Success(event) => {
 
-
 						val buffer = new TMemoryBuffer(512)
 						val protocol = new TBinaryProtocol(buffer)
 						event.write(protocol)
@@ -136,15 +121,6 @@ import java.util.Arrays
 						val bytes = Arrays.copyOfRange(buffer.getArray(), 0, buffer.length())
 						timingEventQueue.add(bytes, None)
 
-							// reg.write(protocol)
-
-						// Registration.write(new Registration(), protocol)
-
-
-						// events += event
-						// updateResults(events) map {
-						// 	updatedResults => results = updatedResults.toList
-						// }
 						val r = Response(req.version, Status.Created)
 						Future(r)
 					}
@@ -166,4 +142,4 @@ import java.util.Arrays
 	}
 
 
-// }
+}

@@ -1,35 +1,24 @@
 import com.twitter.finagle.http.service.HttpResponseClassifier
+import io.tomv.timing.gateway.GatewayService
 import org.scalatest.FunSuite
 import org.scalatest.BeforeAndAfterEach
 import com.twitter.finagle.{Http, Service}
 import com.twitter.finagle.Thrift
 import com.twitter.finagle.http.{Request, Response, Status}
-import com.twitter.finagle.builder.ClientBuilder
 import com.twitter.util.{Closable, Future}
 import com.twitter.finagle.http.Method
 import com.twitter.util.Await
 import com.fasterxml.jackson.databind.{ObjectMapper, DeserializationFeature}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import scala.util.{Try, Success, Failure}
 import com.twitter.finagle.http.MediaType
 import io.tomv.timing.registration.{Registration, RegistrationServiceImpl}
 import io.tomv.timing.results.{EventType, Result, TimingEvent, ResultsServiceImpl, TimingEventListener}
 import org.scalatest.concurrent.ScalaFutures
 import scala.collection.mutable.ArrayBuffer
 
+import io.tomv.timing.common.LocalQueue
 
-// import scala.reflect._
-import com.twitter.finagle.util.HashedWheelTimer
-import net.lag.kestrel.{PersistentQueue, LocalDirectory}
-import net.lag.kestrel.config.{QueueConfig, QueueBuilder}
-import com.twitter.conversions.time._
-import com.twitter.concurrent.NamedPoolThreadFactory
-import java.util.concurrent._
-import org.apache.thrift.protocol.TBinaryProtocol
-import org.apache.thrift.transport.TMemoryBuffer
-import java.util.Arrays
-import com.twitter.scrooge.ThriftStruct
-import org.apache.thrift.protocol._
+import net.lag.kestrel.PersistentQueue
 
 class GatewaySuite extends FunSuite with ScalaFutures with TwitterFutures with BeforeAndAfterEach {
   var gatewayServer: com.twitter.finagle.ListeningServer = _
@@ -48,7 +37,7 @@ class GatewaySuite extends FunSuite with ScalaFutures with TwitterFutures with B
   override def beforeEach(): Unit = {
     registrationServer = Thrift.serveIface(":6000", new RegistrationServiceImpl())
     resultsServer = Thrift.serveIface(":7000", new ResultsServiceImpl(results))
-    queue = createQueue("timingevents")
+    queue = LocalQueue.createQueue("timingevents")
     eventsListener = new TimingEventListener(queue, results)
 	  gatewayServer = Http.serve(":8080", new GatewayService(queue).router)
     client = Http.client.withResponseClassifier(HttpResponseClassifier.ServerErrorsAsFailures)newService(":8080")
@@ -56,24 +45,6 @@ class GatewaySuite extends FunSuite with ScalaFutures with TwitterFutures with B
 
   override def afterEach(): Unit = {
 	   Closable.all(registrationServer, resultsServer, gatewayServer, client).close()
-  }
-
-  def createQueue(name: String) : PersistentQueue = {
-    val queueConfig = new QueueBuilder()
-    val journalSyncScheduler =
-      new ScheduledThreadPoolExecutor(
-        Runtime.getRuntime.availableProcessors,
-        new NamedPoolThreadFactory("journal-sync", true),
-        new RejectedExecutionHandler {
-          override def rejectedExecution(r: Runnable, executor: ThreadPoolExecutor) {
-            // log.warning("Rejected journal fsync")
-          }
-        })
-    val timer = HashedWheelTimer(100.milliseconds)
-    val build = new QueueBuilder()
-    val queue = new PersistentQueue(name, new LocalDirectory("/Users/tomv/.kestrel", journalSyncScheduler), build(), timer)
-    queue.setup()
-    queue
   }
 
   def listRegistrations(client: Service[Request, Response]): Future[List[Registration]] = {

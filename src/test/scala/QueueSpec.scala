@@ -1,56 +1,21 @@
+import io.tomv.timing.results.EventType
 import org.scalatest.FunSuite
-import org.scalatest.BeforeAndAfterEach
-import com.twitter.finagle.{Http, Service}
-import com.twitter.finagle.Thrift
-import com.twitter.finagle.http.{Request, Response, Status}
-import com.twitter.finagle.builder.ClientBuilder
-import com.twitter.util.{Closable, Future}
-import com.twitter.finagle.http.Method
-import com.twitter.util.Await
-import com.fasterxml.jackson.databind.{ObjectMapper, DeserializationFeature}
-import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import scala.util.{Try, Success, Failure}
-import com.twitter.finagle.http.MediaType
 import io.tomv.timing.registration.{Registration, RegistrationServiceImpl}
 import io.tomv.timing.results.thrift.{Result, TimingEvent}
-import io.tomv.timing.results.{EventType}
-// import scala.reflect.ClassTag
-//import java.net.InetSocketAddress
 
-// import scala.reflect._
-import com.twitter.finagle.util.HashedWheelTimer
-import net.lag.kestrel.{PersistentQueue, LocalDirectory}
-import net.lag.kestrel.config.{QueueConfig, QueueBuilder}
-import com.twitter.conversions.time._
-import com.twitter.concurrent.NamedPoolThreadFactory
-import java.util.concurrent._
 import org.apache.thrift.protocol.TBinaryProtocol
 import org.apache.thrift.transport.TMemoryBuffer
 import java.util.Arrays
 import com.twitter.scrooge.ThriftStruct
 import org.apache.thrift.protocol._
 
+
+import io.tomv.timing.common.LocalQueue
+
 class QueueSuite extends FunSuite {
 
   val testRegistration = Registration("AB1234", "Run Rabbit, Run", "M2025")
 
-  def createQueue(name: String) : PersistentQueue = {
-    val queueConfig = new QueueBuilder()
-    val journalSyncScheduler =
-      new ScheduledThreadPoolExecutor(
-        Runtime.getRuntime.availableProcessors,
-        new NamedPoolThreadFactory("journal-sync", true),
-        new RejectedExecutionHandler {
-          override def rejectedExecution(r: Runnable, executor: ThreadPoolExecutor) {
-            // log.warning("Rejected journal fsync")
-          }
-        })
-    val timer = HashedWheelTimer(100.milliseconds)
-    val build = new QueueBuilder()
-    val queue = new PersistentQueue(name, new LocalDirectory("/Users/tomv/.kestrel", journalSyncScheduler), build(), timer)
-    queue.setup()
-    queue
-  }
 
   def writeBytes(item: ThriftStruct) : Array[Byte] = {
       val buffer = new TMemoryBuffer(512)
@@ -72,7 +37,7 @@ class QueueSuite extends FunSuite {
 
   test("Can create queue") {
 
-    val queue = createQueue("test")
+    val queue = LocalQueue.createQueue("test")
     assert(queue.peek() == None)
     queue.close()
     assert(queue.isClosed)
@@ -80,7 +45,7 @@ class QueueSuite extends FunSuite {
 
   test("Can post and read bytes to queue") {
 
-    val queue = createQueue("bytes")
+    val queue = LocalQueue.createQueue("bytes")
     queue.add("hello".getBytes)
 
     val item = queue.peek()
@@ -96,7 +61,7 @@ class QueueSuite extends FunSuite {
   }
 
   test("can post and read thrift models to queue") {
-    val queue = createQueue("bytes")
+    val queue = LocalQueue.createQueue("bytes")
     val started = ChipStarted(testRegistration.chipNumber)
     queue.add(writeBytes(started))
 

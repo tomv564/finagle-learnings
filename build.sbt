@@ -16,23 +16,9 @@ libraryDependencies += "org.scalatest" %% "scalatest" % "2.2.6" % "test"
 
 lazy val root = (project in file(".")).
 	aggregate(registration, results).
-	dependsOn(registration, results)
-
-// lazy val gateway = (project in file("src/gateway")).
-// 	settings(commonSettings: _*).
-// 	settings(name := "gateway")
+	dependsOn(registration, results, common)
 
 lazy val registration = project
-lazy val results = project.dependsOn(registration)
+lazy val results = project.dependsOn(registration, common)
 
-// lazy val registration = (project in file("src/registration")).
-// 	settings(commonSettings: _*).
-// 	settings(
-// 		name := "registration",
-// 		scroogeThriftSourceFolder in Compile <<= baseDirectory {
-// 			base => base / "thrift"
-// 		},
-// 		mainClass in (Compile, run) := Some("io.tomv.timing.registration.Main")
-// 	)
-
-
+lazy val common = project
