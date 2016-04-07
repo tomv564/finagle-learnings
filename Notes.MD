@@ -124,7 +124,7 @@ Consumes from a queue.
 ### Next up: clean up
 
 * Extract in-process queue creation to a single utility - DONE
-* Clean up old dependencies (eg jackson) 
+* Clean up old dependencies (eg jackson) NOT DONE.
     - install sbt-dependency-graph plugin (globally in ~/.sbt)
     - run sbt dependencyBrowseGraph or something
     - Put exclude("com.fasterxml.jackson.module", "jackson-module-scala") on the offending outdated dependency. https://www.packtpub.com/books/content/dependency-management-sbt
