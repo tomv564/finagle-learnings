@@ -22,9 +22,9 @@ import org.apache.thrift.protocol.TBinaryProtocol
 import org.apache.thrift.transport.TMemoryBuffer
 import java.util.Arrays
 
-package io.tomv.timing.gateway {
+package io.tomv.timing {
 
-	class GatewayService(timingEventQueue: PersistentQueue) {
+	class GatewayService(eventPublisher: QueuePublisher) {
 
 		val mapper = new ObjectMapper()
 		mapper.registerModule(DefaultScalaModule)
@@ -113,13 +113,7 @@ package io.tomv.timing.gateway {
 			def apply(req: Request): Future[Response] = {
 				Try(req withReader { r => mapper.readValue(r, classOf[TimingEvent]) }) match {
 					case Success(event) => {
-
-						val buffer = new TMemoryBuffer(512)
-						val protocol = new TBinaryProtocol(buffer)
-						event.write(protocol)
-
-						val bytes = Arrays.copyOfRange(buffer.getArray(), 0, buffer.length())
-						timingEventQueue.add(bytes, None)
+						eventPublisher.publish(event)
 
 						val r = Response(req.version, Status.Created)
 						Future(r)

@@ -10,14 +10,19 @@ package io.tomv.timing.results {
 
 	object Main extends App {
 
-		var eventQueue : PersistentQueue = LocalQueue.createQueue("timingevents")
 		val results = mutable.ArrayBuffer[Result]()
 
-		val listener = new TimingEventListener(eventQueue, results)
+		val handler = new TimingEventHandler(results)
+		val listener = new KestrelQueueListener("localhost:8000", "timingevents", handler)
+
+		val thread = new Thread(listener).start()
 
 		val service = new ResultsServiceImpl(results)
 		val server = Thrift.serveIface(new InetSocketAddress(6000), service)
 		Await.ready(server)
+
+		listener.stop()
+
 	}
 
 }

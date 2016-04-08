@@ -129,11 +129,13 @@ Consumes from a queue.
     - run sbt dependencyBrowseGraph or something
     - Put exclude("com.fasterxml.jackson.module", "jackson-module-scala") on the offending outdated dependency. https://www.packtpub.com/books/content/dependency-management-sbt
 * Switch to finagle-kestrel
+    - Reading - DONE
+    - Writing (Gateway) - DONE
 
 ### Then: run a single instance of the whole stack 
 
 * Standalone kestrel
-* Everything still references localhost.
+* Everything accepts a urls
 * Curl test or reuse unit test?
 
 ### Then: run a single instance on the single mesos slave

@@ -1,4 +1,5 @@
 import com.twitter.finagle.http.service.HttpResponseClassifier
+import io.tomv.timing.{PersistentQueuePublisher, GatewayService}
 import io.tomv.timing.gateway.GatewayService
 import org.scalatest.FunSuite
 import org.scalatest.BeforeAndAfterEach
@@ -12,7 +13,7 @@ import com.fasterxml.jackson.databind.{ObjectMapper, DeserializationFeature}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.twitter.finagle.http.MediaType
 import io.tomv.timing.registration.{Registration, RegistrationServiceImpl}
-import io.tomv.timing.results.{EventType, Result, TimingEvent, ResultsServiceImpl, TimingEventListener}
+import io.tomv.timing.results._
 import org.scalatest.concurrent.ScalaFutures
 import scala.collection.mutable.ArrayBuffer
 
@@ -24,7 +25,8 @@ class GatewaySuite extends FunSuite with ScalaFutures with TwitterFutures with B
   var gatewayServer: com.twitter.finagle.ListeningServer = _
   var registrationServer: com.twitter.finagle.ListeningServer = _
   var resultsServer: com.twitter.finagle.ListeningServer = _
-  var eventsListener: TimingEventListener = _
+	var eventHandler: TimingEventHandler = _
+  var queueListener: PersistentQueueListener = _
   var queue: PersistentQueue = _
   val results : ArrayBuffer[Result] = new ArrayBuffer[Result]()
   var client: Service[Request, Response] = _
@@ -38,8 +40,9 @@ class GatewaySuite extends FunSuite with ScalaFutures with TwitterFutures with B
     registrationServer = Thrift.serveIface(":6000", new RegistrationServiceImpl())
     resultsServer = Thrift.serveIface(":7000", new ResultsServiceImpl(results))
     queue = LocalQueue.createQueue("timingevents")
-    eventsListener = new TimingEventListener(queue, results)
-	  gatewayServer = Http.serve(":8080", new GatewayService(queue).router)
+		eventHandler = new TimingEventHandler(results)
+		queueListener = new PersistentQueueListener(queue, eventHandler)
+	  gatewayServer = Http.serve(":8080", new GatewayService(new PersistentQueuePublisher(queue)).router)
     client = Http.client.withResponseClassifier(HttpResponseClassifier.ServerErrorsAsFailures)newService(":8080")
   }
 
@@ -146,7 +149,7 @@ class GatewaySuite extends FunSuite with ScalaFutures with TwitterFutures with B
 
   test("can have a result after a race") {
 
-		val thread = new Thread(eventsListener).start()
+		val thread = new Thread(queueListener).start()
 
   	val created = createRegistration(client, testRegistration)
   	created.onFailure(t => fail(t.toString))
@@ -166,7 +169,7 @@ class GatewaySuite extends FunSuite with ScalaFutures with TwitterFutures with B
 		whenReady (results) {
 			list =>
 				assert(!list.isEmpty)
-				eventsListener.stop()
+				queueListener.stop()
 		}
 
   }

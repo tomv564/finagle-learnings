@@ -4,13 +4,11 @@ import net.lag.kestrel.PersistentQueue
 import io.tomv.timing.common.LocalQueue
 
 
-package io.tomv.timing.gateway {
+package io.tomv.timing {
 
 	object Main extends App {
 
-		var eventQueue : PersistentQueue = LocalQueue.createQueue("timingevents")
-
-		val gatewayService = new GatewayService(eventQueue)
+		val gatewayService = new GatewayService(new KestrelQueuePublisher("localhost:8000", "timingevents"))
 
 		val server = Http.serve(":8080", gatewayService.router)
 		Await.ready(server)
