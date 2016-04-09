@@ -1,6 +1,8 @@
 import com.twitter.finagle.http.service.HttpResponseClassifier
+import io.tomv.timing.registration.thrift.RegistrationService
+import io.tomv.timing.results.thrift.ResultsService
 import io.tomv.timing.{PersistentQueuePublisher, GatewayService}
-import io.tomv.timing.gateway.GatewayService
+import io.tomv.timing.GatewayService
 import org.scalatest.FunSuite
 import org.scalatest.BeforeAndAfterEach
 import com.twitter.finagle.{Http, Service}
@@ -27,10 +29,13 @@ class GatewaySuite extends FunSuite with ScalaFutures with TwitterFutures with B
   var resultsServer: com.twitter.finagle.ListeningServer = _
 	var eventHandler: TimingEventHandler = _
   var queueListener: PersistentQueueListener = _
+	var queuePublisher: PersistentQueuePublisher = _
   var queue: PersistentQueue = _
   val results : ArrayBuffer[Result] = new ArrayBuffer[Result]()
   var client: Service[Request, Response] = _
   val testRegistration = Registration("AB1234", "Run Rabbit, Run", "M2025")
+	var registrationClient: RegistrationService[Future] = _
+	var resultsClient: ResultsService[Future] = _
 
   val mapper = new ObjectMapper()
 	mapper.registerModule(DefaultScalaModule)
@@ -39,11 +44,15 @@ class GatewaySuite extends FunSuite with ScalaFutures with TwitterFutures with B
   override def beforeEach(): Unit = {
     registrationServer = Thrift.serveIface(":6000", new RegistrationServiceImpl())
     resultsServer = Thrift.serveIface(":7000", new ResultsServiceImpl(results))
-    queue = LocalQueue.createQueue("timingevents")
-		eventHandler = new TimingEventHandler(results)
+		val registrationClient = Thrift.newIface[RegistrationService[Future]]("localhost:6000")
+		val resultsClient = Thrift.newIface[ResultsService[Future]]("localhost:6001")
+
+		queue = LocalQueue.createQueue("timingevents")
+		eventHandler = new TimingEventHandler(results, registrationClient)
 		queueListener = new PersistentQueueListener(queue, eventHandler)
-	  gatewayServer = Http.serve(":8080", new GatewayService(new PersistentQueuePublisher(queue)).router)
-    client = Http.client.withResponseClassifier(HttpResponseClassifier.ServerErrorsAsFailures)newService(":8080")
+		queuePublisher = new PersistentQueuePublisher(queue)
+	  gatewayServer = Http.serve(":8080", new GatewayService(queuePublisher, registrationClient, resultsClient).router)
+    client = Http.client.withResponseClassifier(HttpResponseClassifier.ServerErrorsAsFailures).newService(":8080")
   }
 
   override def afterEach(): Unit = {

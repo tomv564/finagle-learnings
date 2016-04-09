@@ -132,10 +132,50 @@ Consumes from a queue.
     - Reading - DONE
     - Writing (Gateway) - DONE
 
+
 ### Then: run a single instance of the whole stack 
 
+Some nice-to-haves:
+* Logging
+* Smarter reading/writing thrift to/from Buf (bijections??)
+* TwitterServer all the things
+
+
 * Standalone kestrel
-* Everything accepts a urls
+
+twitter's sbt-package-dist plugin is old, do it manually
+run `sbt package`
+create /dist/{package name}/
+copy src/scripts to above dir
+copy config/*.scala to above dir and adjust config.
+edit base.sh:
+`SBT_JAR=kestrel-assembly-2.4.8-SNAPSHOT.jar`
+
+
+ostrich is missing, what to do? 
+There was a 2.11 version, use that.
+
+use sbt-assembly to make a fat jar
+conflicts when same class is redefined:
+org.slf4j/slf4j-jdk14/jars/slf4j-jdk14-1.7.7.jar
+org.slf4j/slf4j-log4j12/jars/slf4j-log4j12-1.7.5
+StaticMDCBinder
+StaticLoggerBinder
+finagle-memcached was the culprit. exclude("org.slf4j", "slf4j-jdk14")
+
+
+* Everything listens to a specified url
+
+Kestrel:
+  memcacheListenPort = 22133
+  textListenPort = 2222
+  thriftListenPort = 2229
+
+Gateway: 8080
+Registration: 6000
+Results: 7000
+
+
 * Curl test or reuse unit test?
 
 ### Then: run a single instance on the single mesos slave

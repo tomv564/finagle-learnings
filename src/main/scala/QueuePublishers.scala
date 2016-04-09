@@ -31,6 +31,7 @@ package io.tomv.timing {
 
   class KestrelQueuePublisher(hostAndPort: String, queueName: String) extends QueuePublisher {
 
+    // use Client.makeThrift to use thrift protocol
     val client = Client(ClientBuilder()
       .codec(Kestrel())
       .hosts(hostAndPort)

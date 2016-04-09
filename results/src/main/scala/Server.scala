@@ -8,17 +8,20 @@ import io.tomv.timing.common.LocalQueue
 
 package io.tomv.timing.results {
 
+	import com.twitter.util.Future
+	import io.tomv.timing.registration.thrift.RegistrationService
+
 	object Main extends App {
 
 		val results = mutable.ArrayBuffer[Result]()
 
-		val handler = new TimingEventHandler(results)
-		val listener = new KestrelQueueListener("localhost:8000", "timingevents", handler)
-
+		val registrationClient = Thrift.newIface[RegistrationService[Future]]("localhost:6000")
+		val handler = new TimingEventHandler(results, registrationClient)
+		val listener = new KestrelQueueListener("localhost:22133", "timingevents", handler)
 		val thread = new Thread(listener).start()
 
 		val service = new ResultsServiceImpl(results)
-		val server = Thrift.serveIface(new InetSocketAddress(6000), service)
+		val server = Thrift.serveIface(new InetSocketAddress(7000), service)
 		Await.ready(server)
 
 		listener.stop()

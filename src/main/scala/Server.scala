@@ -6,9 +6,18 @@ import io.tomv.timing.common.LocalQueue
 
 package io.tomv.timing {
 
+	import com.twitter.finagle.Thrift
+	import com.twitter.util.Future
+	import io.tomv.timing.registration.thrift.RegistrationService
+	import io.tomv.timing.results.thrift.ResultsService
+
 	object Main extends App {
 
-		val gatewayService = new GatewayService(new KestrelQueuePublisher("localhost:8000", "timingevents"))
+		val publisher = new KestrelQueuePublisher("localhost:22133", "timingevents")
+		val registrationClient = Thrift.newIface[RegistrationService[Future]]("localhost:6000")
+		val resultsClient = Thrift.newIface[ResultsService[Future]]("localhost:6001")
+
+		val gatewayService = new GatewayService(publisher, registrationClient, resultsClient)
 
 		val server = Http.serve(":8080", gatewayService.router)
 		Await.ready(server)

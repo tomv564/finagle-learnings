@@ -7,11 +7,9 @@ import io.tomv.timing.registration.thrift.RegistrationService
 package io.tomv.timing.results {
 
 
-	class TimingEventHandler(results: mutable.ArrayBuffer[Result]) {
+	class TimingEventHandler(results: mutable.ArrayBuffer[Result], registrationClient: RegistrationService[Future]) {
 
 		val events = mutable.MutableList[thrift.TimingEvent]()
-
-		val registrationClient = Thrift.newIface[RegistrationService[Future]]("localhost:6000")
 
 		def handleEvent(event: thrift.TimingEvent): Unit = {
 			events += event
