@@ -17,18 +17,15 @@ import io.tomv.timing.registration.Registration
 import io.tomv.timing.results.thrift.ResultsService
 import io.tomv.timing.results.{TimingEvent, Result}
 
-import net.lag.kestrel.PersistentQueue
-import org.apache.thrift.protocol.TBinaryProtocol
-import org.apache.thrift.transport.TMemoryBuffer
-import java.util.Arrays
-
 package io.tomv.timing {
+
+	import com.twitter.finagle.kestrel.protocol.Stored
 
 	class GatewayService(eventPublisher: QueuePublisher, registrationClient: RegistrationService[Future], resultsClient: ResultsService[Future]) {
 
 		val mapper = new ObjectMapper()
 		mapper.registerModule(DefaultScalaModule)
-		mapper.configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, true)
+//		mapper.configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, true)
 
 		val alwaysOK = new Service[Request, Response] {
 		  def apply(req: Request): Future[Response] =
@@ -92,7 +89,13 @@ package io.tomv.timing {
 					case Success(reg) => {
 						if (isValidRegistration(reg)) {
 							registrationClient.create(reg.name, reg.category) map {
-								created => Response(req.version, Status.Created)
+								registration =>
+									val r = Response(req.version, Status.Created)
+									val out = new ByteArrayOutputStream
+									mapper.writeValue(out, registration)
+									r.setContentTypeJson()
+									r.setContentString(out.toString())
+									r
 							}
 						} else {
 							Future(Response(req.version, Status.NotImplemented))//invalidRequest(req)
@@ -111,11 +114,13 @@ package io.tomv.timing {
 			def apply(req: Request): Future[Response] = {
 				Try(req withReader { r => mapper.readValue(r, classOf[TimingEvent]) }) match {
 					case Success(event) => {
-						eventPublisher.publish(event)
-
-						val r = Response(req.version, Status.Created)
-						Future(r)
-					}
+						eventPublisher.publish(event) map {
+							r => r match {
+								case Stored() => Response(req.version, Status.Created)
+								case _ => Response(req.version, Status.InternalServerError)
+							}
+						}
+				  }
 					case Failure(ex) => invalidRequest(req)
 				}
 

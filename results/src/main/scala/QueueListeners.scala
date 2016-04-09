@@ -10,35 +10,51 @@ import org.apache.thrift.transport.TMemoryBuffer
 
 package io.tomv.timing.results {
 
+  import com.twitter.io.Buf
+
   class KestrelQueueListener(hostAndPort: String, queueName: String, handler: TimingEventHandler) extends Runnable {
 
+    var running = false
+
     def stop(): Unit = {
+      running = false
       handle.close()
     }
 
     var handle: ReadHandle = _
 
     override def run(): Unit = {
-      listen()
+      handle = listen()
+      handle.wait()
     }
 
-    def listen(): Unit = {
-
+    def read() = {
       val client = Client(ClientBuilder()
         .codec(Kestrel())
         .hosts(hostAndPort)
         .hostConnectionLimit(1) // process at most 1 item per connection concurrently
         .buildFactory())
 
-      val queueName = "queue"
+      client.get(queueName)
+
+    }
+
+    def listen(): ReadHandle = {
+      running = true
+      val client = Client(ClientBuilder()
+        .codec(Kestrel())
+        .hosts(hostAndPort)
+        .hostConnectionLimit(1) // process at most 1 item per connection concurrently
+        .buildFactory())
+
+
       val timer = new JavaTimer(isDaemon = true)
       val retryBackoffs = Backoff.const(10.milliseconds)
-      val readHandle: ReadHandle = client.readReliably(queueName, timer, retryBackoffs)
-      handle = readHandle
+      val readHandle = client.readReliably(queueName, timer, retryBackoffs)
 
       // Attach an async error handler that prints to stderr
       readHandle.error foreach { e =>
-        System.err.println("zomg! got an error " + e)
+        if (running) System.err.println("zomg! got an error " + e)
       }
 
       // Attach an async message handler that prints the messages to stdout
@@ -49,6 +65,8 @@ package io.tomv.timing.results {
           msg.ack.sync() // if we don't do this, no more msgs will come to us
         }
       }
+
+      readHandle
 
     }
 

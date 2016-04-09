@@ -6,8 +6,11 @@ import io.tomv.timing.registration.thrift.RegistrationService
 
 package io.tomv.timing.results {
 
+	trait TimingEventHandler {
+		def handleEvent(event: thrift.TimingEvent): Unit
+	}
 
-	class TimingEventHandler(results: mutable.ArrayBuffer[Result], registrationClient: RegistrationService[Future]) {
+	class ResultTimingEventHandler(results: mutable.ArrayBuffer[Result], registrationClient: RegistrationService[Future]) extends TimingEventHandler {
 
 		val events = mutable.MutableList[thrift.TimingEvent]()
 

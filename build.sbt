@@ -14,11 +14,15 @@ libraryDependencies ++= Seq(
 )
 libraryDependencies += "org.scalatest" %% "scalatest" % "2.2.6" % "test"
 
+Defaults.itSettings
+
 lazy val root = (project in file(".")).
 	aggregate(registration, results).
-	dependsOn(registration, results, common)
+	dependsOn(registration, results, common).configs(IntegrationTest)
 
-lazy val registration = project
-lazy val results = project.dependsOn(registration, common)
+lazy val registration = project.enablePlugins(JavaAppPackaging)
+lazy val results = project.dependsOn(registration, common).enablePlugins(JavaAppPackaging)
 
 lazy val common = project
+
+enablePlugins(JavaAppPackaging)

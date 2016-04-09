@@ -1,4 +1,3 @@
-import io.tomv.timing.registration.thrift.{Registration, RegistrationService, RegistrationException}
 import com.twitter.util.Future
 import scala.collection.mutable
 

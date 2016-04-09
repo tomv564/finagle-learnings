@@ -178,6 +178,11 @@ Results: 7000
 
 * Curl test or reuse unit test?
 
+Integration tests (under src/it, enable sbt configuration) written
+Check out put values
+Use Array[MyType] to deserialize with jackson or you will get Map[Map[String, String]]
+Always check return values.
+
 ### Then: run a single instance on the single mesos slave
 
 * package into docker containers

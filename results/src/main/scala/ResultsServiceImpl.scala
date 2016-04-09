@@ -30,14 +30,7 @@ package io.tomv.timing.results {
   }
 
   class ResultsServiceImpl(results: Seq[thrift.Result]) extends thrift.ResultsService[Future] {
-
-
-
-
     override def getAll(): Future[Seq[thrift.Result]] = Future.value(results)
-//    implement:
-//      https://www.codatlas.com/github.com/twitter/finagle/HEAD/finagle-example/src/main/scala/com/twitter/finagle/example/kestrel/KestrelClient.scala
-
   }
 
 }

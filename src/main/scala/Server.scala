@@ -15,7 +15,7 @@ package io.tomv.timing {
 
 		val publisher = new KestrelQueuePublisher("localhost:22133", "timingevents")
 		val registrationClient = Thrift.newIface[RegistrationService[Future]]("localhost:6000")
-		val resultsClient = Thrift.newIface[ResultsService[Future]]("localhost:6001")
+		val resultsClient = Thrift.newIface[ResultsService[Future]]("localhost:7000")
 
 		val gatewayService = new GatewayService(publisher, registrationClient, resultsClient)
 
