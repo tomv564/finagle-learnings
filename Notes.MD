@@ -175,18 +175,42 @@ Gateway: 8080
 Registration: 6000
 Results: 7000
 
+#### Integration tests
 
 * Curl test or reuse unit test?
 
-Integration tests (under src/it, enable sbt configuration) written
-Check out put values
-Use Array[MyType] to deserialize with jackson or you will get Map[Map[String, String]]
-Always check return values.
+Integration tests (under src/it, enable sbt configuration) 
+Run with `it:test`
+By default not ran on normal builds.
+
+Things Learned:
+* Check output values from any client call as errors are rarely exceptions.
+* Use Array[MyType] to deserialize with jackson or you will get Map[Map[String, String]]
 
 ### Then: run a single instance on the single mesos slave
 
+Planning: Local docker is nice but not needed for deployment.
+Dlite while waiting for docker's own beta, easy quick install on brew.
+https://github.com/nlf/dlite/tree/master
+
+Put images on the mesos master? How will mesosphere pull the images?
+
 * package into docker containers
+
+update build.sbt: enablePlugins(DockerPlugin)
+then: `sbt docker:publishLocal`
+uses java:latest from docker hub by default.
+
 * run packaged containers on local docker
+
+1.x version of dlite doesn't properly return stdout, so use `run -i` to test
+
+docker run -d -p 8080:8080 root:1.0
+docker run -p 8080 --rm
+
+TODO: label latest??
+Yes, add `dockerUpdateLatest := true`
+
 * define apps in mesosphere 
 * fix any service location issues.
 

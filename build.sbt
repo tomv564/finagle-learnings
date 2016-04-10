@@ -14,15 +14,20 @@ libraryDependencies ++= Seq(
 )
 libraryDependencies += "org.scalatest" %% "scalatest" % "2.2.6" % "test"
 
+enablePlugins(JavaAppPackaging)
+enablePlugins(DockerPlugin)
+
 Defaults.itSettings
 
 lazy val root = (project in file(".")).
 	aggregate(registration, results).
-	dependsOn(registration, results, common).configs(IntegrationTest)
+	dependsOn(registration, results, common).
+	configs(IntegrationTest).
+	settings(Seq(dockerExposedPorts := Seq(8080), dockerUpdateLatest := true))
 
 lazy val registration = project.enablePlugins(JavaAppPackaging)
 lazy val results = project.dependsOn(registration, common).enablePlugins(JavaAppPackaging)
 
 lazy val common = project
 
-enablePlugins(JavaAppPackaging)
+
