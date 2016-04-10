@@ -1,0 +1,26 @@
+version: '2'
+services:
+  registration:
+    image: registration
+  results:
+    image: results
+    depends_on:
+      - kestrel
+    environment:
+      - RESOLVE_CLIENTS=HOSTNAME
+  root:
+    image: root
+    ports:
+      - "8080:8080"
+    depends_on:
+      - registration
+      - results
+      - kestrel
+    environment:
+      - RESOLVE_CLIENTS=HOSTNAME
+  kestrel:
+    image: kestrel
+    volumes:
+      - /var/log/kestrel
+      - /var/spool/kestrel
+

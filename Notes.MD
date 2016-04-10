@@ -208,8 +208,17 @@ uses java:latest from docker hub by default.
 docker run -d -p 8080:8080 root:1.0
 docker run -p 8080 --rm
 
-TODO: label latest??
+TODO: label latest so I can just run docker run -p 8080:8080 root?
 Yes, add `dockerUpdateLatest := true`
+
+What about kestrel?
+
+sbt-native-packager
+config loading matches what kestrel had itself (`-f ./config/development.scala`)
+Create folders
+Set up memory & environment
+Don't want start/stop script (yet), so foreground.sh should be ok?
+
 
 * define apps in mesosphere 
 * fix any service location issues.

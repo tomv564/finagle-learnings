@@ -40,9 +40,7 @@ package io.tomv.timing.it {
     //    mapper.configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, true)
 
     override def beforeEach(): Unit = {
-      val registrationClient = Thrift.newIface[RegistrationService[Future]]("localhost:6000")
-      val resultsClient = Thrift.newIface[ResultsService[Future]]("localhost:6001")
-      client = Http.client.withResponseClassifier(HttpResponseClassifier.ServerErrorsAsFailures).newService(":8080")
+      client = Http.client.withResponseClassifier(HttpResponseClassifier.ServerErrorsAsFailures).newService("local.docker:8080")
     }
 
     override def afterEach(): Unit = {

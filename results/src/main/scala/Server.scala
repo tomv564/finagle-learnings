@@ -13,11 +13,18 @@ package io.tomv.timing.results {
 
 	object Main extends App {
 
+		def resolve(serviceName: String, port: Int) : String = {
+			sys.env.get("RESOLVE_CLIENTS") match {
+				case Some("HOSTNAME") => serviceName + ":" + port.toString
+				case _ => "localhost:" + port
+			}
+		}
+
 		val results = mutable.ArrayBuffer[Result]()
 
-		val registrationClient = Thrift.newIface[RegistrationService[Future]]("localhost:6000")
+		val registrationClient = Thrift.newIface[RegistrationService[Future]](resolve("registration", 6000))
 		val handler = new ResultTimingEventHandler(results, registrationClient)
-		val listener = new KestrelQueueListener("localhost:22133", "timingevents", handler)
+		val listener = new KestrelQueueListener(resolve("kestrel", 22133), "timingevents", handler)
 //		val thread = new Thread(listener).start()
 		val handle = listener.listen()
 
