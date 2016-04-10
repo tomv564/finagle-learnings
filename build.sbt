@@ -25,8 +25,11 @@ lazy val root = (project in file(".")).
 	configs(IntegrationTest).
 	settings(Seq(dockerExposedPorts := Seq(8080), dockerUpdateLatest := true))
 
-lazy val registration = project.enablePlugins(JavaAppPackaging)
-lazy val results = project.dependsOn(registration, common).enablePlugins(JavaAppPackaging)
+lazy val registration = project.enablePlugins(JavaAppPackaging).
+	settings(Seq(dockerExposedPorts := Seq(6000), dockerUpdateLatest := true))
+
+lazy val results = project.dependsOn(registration, common).enablePlugins(JavaAppPackaging).
+	settings(Seq(dockerExposedPorts := Seq(7000), dockerUpdateLatest := true))
 
 lazy val common = project
 
