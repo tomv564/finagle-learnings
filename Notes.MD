@@ -215,7 +215,7 @@ What about kestrel?
 
 sbt-native-packager
 config loading matches what kestrel had itself (`-f ./config/development.scala`)
-Create folders
+Create folders? Locally: manually. Docker: mount volumes.
 Set up memory & environment
 Don't want start/stop script (yet), so foreground.sh should be ok?
 

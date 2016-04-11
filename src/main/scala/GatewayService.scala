@@ -5,6 +5,7 @@ import com.twitter.util.{Await, Future}
 import com.twitter.finagle.http.service.RoutingService
 import com.twitter.finagle.http.path.{Root, /}
 import com.twitter.finagle.http.Method
+import com.twitter.logging.Logger
 import com.fasterxml.jackson.databind.{ObjectMapper, DeserializationFeature}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import java.io.ByteArrayOutputStream
@@ -26,6 +27,8 @@ package io.tomv.timing {
 		val mapper = new ObjectMapper()
 		mapper.registerModule(DefaultScalaModule)
 //		mapper.configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, true)
+	    private val log = Logger.get(getClass)
+
 
 		val alwaysOK = new Service[Request, Response] {
 		  def apply(req: Request): Future[Response] =
@@ -53,6 +56,7 @@ package io.tomv.timing {
 			def apply(req: Request): Future[Response] = {
 				registrationClient.getAll() map {
 					registrations =>
+						log.info("Returning registrations")
 						val out = new ByteArrayOutputStream
 						mapper.writeValue(out, registrations)
 					 	val r = Response(req.version, Status.Ok)
@@ -67,12 +71,13 @@ package io.tomv.timing {
 			def apply(req: Request): Future[Response] = {
 				resultsClient.getAll() map {
 					results =>
-					val out = new ByteArrayOutputStream
-					mapper.writeValue(out, results)
-				 	val r = Response(req.version, Status.Ok)
-				 	r.setContentTypeJson()
-				 	r.setContentString(out.toString())
-				 	r
+						log.info("Returning results")
+						val out = new ByteArrayOutputStream
+						mapper.writeValue(out, results)
+					 	val r = Response(req.version, Status.Ok)
+					 	r.setContentTypeJson()
+					 	r.setContentString(out.toString())
+					 	r
 				}
 
 			}
@@ -90,6 +95,7 @@ package io.tomv.timing {
 						if (isValidRegistration(reg)) {
 							registrationClient.create(reg.name, reg.category) map {
 								registration =>
+									log.info("Created %s for %s", registration.chipNumber, registration.name)
 									val r = Response(req.version, Status.Created)
 									val out = new ByteArrayOutputStream
 									mapper.writeValue(out, registration)
@@ -98,11 +104,12 @@ package io.tomv.timing {
 									r
 							}
 						} else {
+							log.info("Invalid Registration")
 							Future(Response(req.version, Status.NotImplemented))//invalidRequest(req)
 						}
 					}
 					case Failure(ex) => {
-						print(ex)
+						log.error(ex, "Could not parse Registration", ex.getMessage)
 						invalidRequest(req)
 					}
 				}
@@ -116,12 +123,21 @@ package io.tomv.timing {
 					case Success(event) => {
 						eventPublisher.publish(event) map {
 							r => r match {
-								case Stored() => Response(req.version, Status.Created)
-								case _ => Response(req.version, Status.InternalServerError)
+								case Stored() => {
+									log.info("%s %s STORED", event.chipNumber, event.`type`)
+									Response(req.version, Status.Created)
+								}
+								case other => {
+									log.info("%s %s %s", event.chipNumber, event.`type`, other)
+									Response(req.version, Status.InternalServerError)
+								}
 							}
 						}
-				  }
-					case Failure(ex) => invalidRequest(req)
+				  	}
+					case Failure(ex) => {
+						log.error(ex, "Could not parse TimingEvent", ex.getMessage)
+						invalidRequest(req)
+					}
 				}
 
 			}

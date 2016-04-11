@@ -3,6 +3,8 @@ import io.tomv.timing.results.thrift
 import com.twitter.finagle.Thrift
 
 import net.lag.kestrel._
+import com.twitter.logging.Logger
+
 
 import com.twitter.util.Future
 import scala.collection.mutable
@@ -30,7 +32,14 @@ package io.tomv.timing.results {
   }
 
   class ResultsServiceImpl(results: Seq[thrift.Result]) extends thrift.ResultsService[Future] {
-    override def getAll(): Future[Seq[thrift.Result]] = Future.value(results)
+
+    private val log = Logger.get(getClass)
+
+    override def getAll(): Future[Seq[thrift.Result]] = {
+      log.info("Get results")
+      Future.value(results)
+    }
+
   }
 
 }

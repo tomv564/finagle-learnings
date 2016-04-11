@@ -7,7 +7,7 @@ services:
     depends_on:
       - kestrel
     environment:
-      - RESOLVE_CLIENTS=HOSTNAME
+      - SERVICE_LOCATION=HOSTNAME
   root:
     image: root
     ports:
@@ -17,7 +17,7 @@ services:
       - results
       - kestrel
     environment:
-      - RESOLVE_CLIENTS=HOSTNAME
+      - SERVICE_LOCATION=HOSTNAME
   kestrel:
     image: kestrel
 

@@ -1,6 +1,7 @@
 import com.twitter.finagle.Thrift
 import scala.collection.mutable
 import com.twitter.util.Future
+import com.twitter.logging.Logger
 
 import io.tomv.timing.registration.thrift.RegistrationService
 
@@ -12,12 +13,15 @@ package io.tomv.timing.results {
 
 	class ResultTimingEventHandler(results: mutable.ArrayBuffer[Result], registrationClient: RegistrationService[Future]) extends TimingEventHandler {
 
+		private val log = Logger.get(getClass)
 		val events = mutable.MutableList[thrift.TimingEvent]()
 
 		def handleEvent(event: thrift.TimingEvent): Unit = {
 			events += event
+			log.info("Received %s %d", event.chipNumber.getOrElse(""), event.`type`)
 			updateResults(events) foreach {
 				updatedResults =>
+					log.info("Updated results, new length %d", updatedResults.length)
 					results.clear()
 					results ++= updatedResults
 			}
