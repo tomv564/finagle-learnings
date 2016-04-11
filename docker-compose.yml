@@ -20,7 +20,4 @@ services:
       - RESOLVE_CLIENTS=HOSTNAME
   kestrel:
     image: kestrel
-    volumes:
-      - /var/log/kestrel
-      - /var/spool/kestrel
 
