@@ -32,6 +32,8 @@ class KestrelSuite extends FunSuite with ScalaFutures with TwitterFutures {
 
   val testRegistration = Registration("AB1234", "Run Rabbit, Run", "M2025")
 
+  val kestrelHost = "node1:22133"
+
 
   def writeBytes(item: ThriftStruct) : Array[Byte] = {
     val buffer = new TMemoryBuffer(512)
@@ -52,7 +54,7 @@ class KestrelSuite extends FunSuite with ScalaFutures with TwitterFutures {
   }
 
   test("Can read a queue") {
-    val listener = new KestrelQueueListener("local.docker:22133", "timingevents", null)
+    val listener = new KestrelQueueListener(kestrelHost, "timingevents", null)
     whenReady(listener.read()) {
       r => assert(r != null)
     }
@@ -61,7 +63,7 @@ class KestrelSuite extends FunSuite with ScalaFutures with TwitterFutures {
 
   test("Can listen to queue") {
     val collector = new TimingEventCollector()
-    val listener = new KestrelQueueListener("local.docker:22133", "timingevents", collector)
+    val listener = new KestrelQueueListener(kestrelHost, "timingevents", collector)
     val handle = listener.listen()
     Thread.sleep(1000)
     handle.close()
@@ -69,7 +71,7 @@ class KestrelSuite extends FunSuite with ScalaFutures with TwitterFutures {
 
   test("Can write/read to a queue") {
 
-    val publisher = new KestrelQueuePublisher("local.docker:22133", "timingevents")
+    val publisher = new KestrelQueuePublisher(kestrelHost, "timingevents")
     val publish = publisher.publish(ChipStarted("ABCDD"))
     whenReady(publish, Timeout(Span(2, Seconds))) {
       response => assert(response == Stored())
@@ -77,7 +79,7 @@ class KestrelSuite extends FunSuite with ScalaFutures with TwitterFutures {
 
     Thread.sleep(1000)
 
-    val listener = new KestrelQueueListener("local.docker:22133", "timingevents", null)
+    val listener = new KestrelQueueListener(kestrelHost, "timingevents", null)
     whenReady(listener.read()) {
       r => assert(r.isDefined)
         val Buf.Utf8(str) = r.get
@@ -89,10 +91,10 @@ class KestrelSuite extends FunSuite with ScalaFutures with TwitterFutures {
   test("Can listen to a queue while writing") {
     val collector = new TimingEventCollector()
 
-    val listener = new KestrelQueueListener("local.docker:22133", "timingevents", collector)
+    val listener = new KestrelQueueListener(kestrelHost, "timingevents", collector)
     val handle = listener.listen()
 
-    val publisher = new KestrelQueuePublisher("local.docker:22133", "timingevents")
+    val publisher = new KestrelQueuePublisher(kestrelHost, "timingevents")
     val publish = publisher.publish(ChipStarted("ABCDD"))
     whenReady(publish, Timeout(Span(2, Seconds))) {
       response => assert(response == Stored())

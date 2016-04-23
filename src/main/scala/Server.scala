@@ -29,6 +29,7 @@ package io.tomv.timing {
 		def resolve(serviceName: String, port: Int) : String = {
 			val hostPort = sys.env.get("SERVICE_LOCATION") match {
 				case Some("HOSTNAME") => serviceName + ":" + port.toString
+				case Some("MARATHONHOST") => serviceName + ".marathon.mesos:" + port.toString
 				case _ => "localhost:" + port
 			}
 			log.info("Resolving %s with %s", serviceName, hostPort)

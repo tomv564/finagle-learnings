@@ -38,9 +38,13 @@ package io.tomv.timing.it {
     mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
 
     //    mapper.configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, true)
+//    val gatewayHost = "local.docker:8080"
+    val gatewayHost = "node2:8080"
 
     override def beforeEach(): Unit = {
-      client = Http.client.withResponseClassifier(HttpResponseClassifier.ServerErrorsAsFailures).newService("local.docker:8080")
+      client = Http.client.
+        withResponseClassifier(HttpResponseClassifier.ServerErrorsAsFailures).
+        newService(gatewayHost)
     }
 
     override def afterEach(): Unit = {
